@@ -66,9 +66,20 @@ public partial class App : Application
         catch (Exception ex)
         {
             var logger = new FileAppLogger();
-            logger.Error("Fatal error during startup.", ex);
+            // Log the FULL exception with stack trace and inner exceptions
+            var detail = ex.ToString();
+            if (ex.InnerException != null)
+            {
+                detail += "\n\n--- INNER EXCEPTION ---\n" + ex.InnerException.ToString();
+                if (ex.InnerException.InnerException != null)
+                {
+                    detail += "\n\n--- INNER INNER EXCEPTION ---\n" + ex.InnerException.InnerException.ToString();
+                }
+            }
+            logger.Error("Fatal error during startup. Details:\n" + detail, ex);
             MessageBox.Show(
                 "RyotaQC V5 gagal dimulai.\n\n" + ex.Message +
+                "\n\nInner: " + (ex.InnerException?.Message ?? "none") +
                 "\n\nDetail telah dicatat di log.",
                 "RyotaQC V5",
                 MessageBoxButton.OK,

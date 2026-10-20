@@ -7,12 +7,29 @@
     <PackageReference Include="System.Management" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Assets\Images\**\*.*">
+    <!-- Copy tile/wallpaper images to output so ImagePathConverter can
+         load them at runtime via absolute file paths. XAML-referenced
+         images are excluded here and embedded as Resource instead. -->
+    <Content Include="Assets\Images\**\*.*"
+              Exclude="Assets\Images\Backgrounds\bg.jpg;
+                       Assets\Images\Tiles\logo.ico;
+                       Assets\Images\Icons\QC\benchmark.png;
+                       Assets\Images\Icons\QC\battery-test.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Update="Config\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Embed images referenced from XAML so they resolve correctly inside
+         a single-file (self-contained) publish. Relative 'Assets/...' paths
+         are resolved by WPF as content files, which fails when the app
+         base directory is null in single-file mode. -->
+    <Resource Include="Assets\Images\Backgrounds\bg.jpg" />
+    <Resource Include="Assets\Images\Tiles\logo.ico" />
+    <Resource Include="Assets\Images\Icons\QC\benchmark.png" />
+    <Resource Include="Assets\Images\Icons\QC\battery-test.png" />
   </ItemGroup>
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -32,5 +49,11 @@
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <TieredCompilation>true</TieredCompilation>
     <TieredPGO>true</TieredPGO>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 </Project>
