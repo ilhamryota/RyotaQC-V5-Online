@@ -1,0 +1,86 @@
+﻿{
+  "tools": [
+    {
+      "id": "disk_management",
+      "name": "Disk Management",
+      "type": "msc",
+      "relativePath": "diskmgmt.msc",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": ""
+    },
+    {
+      "id": "user_accounts",
+      "name": "Control Panel User Accounts",
+      "type": "cmd",
+      "relativePath": "cmd.exe",
+      "arguments": "/c control.exe /name Microsoft.UserAccounts",
+      "runAsAdmin": false,
+      "workingDirectory": ""
+    },
+    {
+      "id": "windows_activation",
+      "name": "Aktivasi",
+      "type": "bat",
+      "relativePath": "tools/MAS_AIO.cmd",
+      "arguments": "",
+      "runAsAdmin": true,
+      "keepOpen": true,
+      "workingDirectory": "tools"
+    },
+    {
+      "id": "hwinfo",
+      "name": "HWiNFO",
+      "type": "exe",
+      "relativePath": "tools/qc/HW Information/HWiNFO64.exe",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": "tools/qc/HW Information"
+    },
+    {
+      "id": "battery_report",
+      "name": "Battery Report",
+      "type": "cmd",
+      "relativePath": "cmd.exe",
+      "arguments": "/c powercfg /batteryreport",
+      "runAsAdmin": true,
+      "workingDirectory": ""
+    },
+    {
+      "id": "qc_cpu_test",
+      "name": "CPU Test",
+      "type": "exe",
+      "relativePath": "tools/qc/CPU Heavy Load/HeavyLoad-x64-Setup.exe",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": "tools/qc/CPU Heavy Load"
+    },
+    {
+      "id": "qc_sentinel",
+      "name": "Sentinel",
+      "type": "exe",
+      "relativePath": "tools/qc/Hard Disk Sentinel/HDSentinel.exe",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": "tools/qc/Hard Disk Sentinel"
+    },
+    {
+      "id": "qc_battery_health",
+      "name": "Battery Health",
+      "type": "exe",
+      "relativePath": "tools/qc/Battery/batteryinfo.exe",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": "tools/qc/Battery"
+    },
+    {
+      "id": "qc_benchmark",
+      "name": "Benchmark",
+      "type": "exe",
+      "relativePath": "tools/qc/SSD Test Speed/CrystalDiskMark9_0_2.exe",
+      "arguments": "",
+      "runAsAdmin": false,
+      "workingDirectory": "tools/qc/SSD Test Speed"
+    }
+  ]
+}
