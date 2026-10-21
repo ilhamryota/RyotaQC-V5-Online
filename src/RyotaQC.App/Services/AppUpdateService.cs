@@ -80,6 +80,15 @@ public sealed class AppUpdateService : IAppUpdateService
                     {
                         continue;
                     }
+
+                    // Only accept assets that look like an update package (ZIP).
+                    // Skip checksums, release notes, or other non-archive files
+                    // that may be uploaded before the actual update bundle.
+                    if (!url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     downloadUrl = url;
                     if (asset.TryGetProperty("size", out var sizeEl) && sizeEl.TryGetInt64(out var sz))
                     {
