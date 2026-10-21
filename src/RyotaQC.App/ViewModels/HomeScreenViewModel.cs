@@ -76,9 +76,9 @@ public partial class HomeScreenViewModel : ObservableObject
         Menus = new ObservableCollection<HomeMenu>
         {
             new() { Key = "system", Title = "System Information", Subtitle = "OS, disk, user, serial", Description = "Lihat informasi lengkap sistem, pengguna, disks, dan serial number unit.", IconGlyph = "\uE9D9", WallpaperFile = "WP1.jpg", ImageFile = "system-information.jpg", Page = AppPage.SystemInformation },
-            new() { Key = "wallpaper", Title = "Wallpaper", Subtitle = "Set desktop wallpaper", Description = "Pilih dan terapkan wallpaper desktop standar Ryota QC.", IconGlyph = "\uE91B", WallpaperFile = "WP4.jpg", ImageFile = "wallpaper-desktop.jpg", Page = AppPage.Wallpaper },
-            new() { Key = "license", Title = "Software Licensing", Subtitle = "License & activation", Description = "Kelola aktivasi, lisensi, dan status software pada unit.", IconGlyph = "\uE8D7", WallpaperFile = "WP5.jpg", ImageFile = "license-activation.jpg", Page = AppPage.Settings },
-            new() { Key = "qc", Title = "Quality Control", Subtitle = "Benchmark & checklist", Description = "Jalankan checklist QC, benchmark, validasi hasil uji, dan laporan teknisi.", IconGlyph = "\uEA18", WallpaperFile = "WP4.jpg", ImageFile = "quality-control.jpg", Page = AppPage.QualityControl }
+            new() { Key = "wallpaper", Title = "Wallpaper", Subtitle = "Set desktop wallpaper", Description = "Pilih dan terapkan wallpaper desktop standar Ryota QC.", IconGlyph = "\uE91B", WallpaperFile = "bjm3.png", ImageFile = "wallpaper-desktop.jpg", Page = AppPage.Wallpaper },
+            new() { Key = "license", Title = "Software Licensing", Subtitle = "License & activation", Description = "Kelola aktivasi, lisensi, dan status software pada unit.", IconGlyph = "\uE8D7", WallpaperFile = "bgr4.png", ImageFile = "license-activation.jpg", Page = AppPage.Settings },
+            new() { Key = "qc", Title = "Quality Control", Subtitle = "Benchmark & checklist", Description = "Jalankan checklist QC, benchmark, validasi hasil uji, dan laporan teknisi.", IconGlyph = "\uEA18", WallpaperFile = "WP2.jpg", ImageFile = "quality-control.jpg", Page = AppPage.QualityControl }
         };
 
         foreach (var menu in Menus)

@@ -16,16 +16,19 @@ public sealed class QualityControlRunner : IQualityControlRunner
 {
     private readonly IUiFeedbackService _feedback;
     private readonly IAppLogger _logger;
+    private readonly IAudioFeedbackService _audio;
     private readonly string _qcRoot;
     private readonly object _runningTestSync = new();
     private CancellationTokenSource? _runningTestMonitorCts;
 
     public QualityControlRunner(
         IUiFeedbackService feedback,
-        IAppLogger logger)
+        IAppLogger logger,
+        IAudioFeedbackService audio)
     {
         _feedback = feedback;
         _logger = logger;
+        _audio = audio;
 
         var workspaceRoot = WorkspacePathService.FindWorkspaceRoot();
         _qcRoot = Path.Combine(workspaceRoot, "tools", "qc");
@@ -35,7 +38,12 @@ public sealed class QualityControlRunner : IQualityControlRunner
 
     public void RunBatteryHealth() => RunFolderExecutable("Battery", ["batteryinfo.exe"]);
 
-    public void RunLcdTest() => ShowDialog(new LcdTestWindow());
+    public void RunLcdTest()
+    {
+        _audio.PlayLaunch();
+        ShowDialog(new LcdTestWindow());
+        _audio.PlayClose();
+    }
 
     public void RunKeyboardTest() => RunFolderExecutable("Keyboard Test");
 
@@ -79,7 +87,9 @@ public sealed class QualityControlRunner : IQualityControlRunner
                     ?? audioFiles.FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Contains("right", StringComparison.OrdinalIgnoreCase));
         }
 
+        _audio.PlayLaunch();
         ShowDialog(new AudioTestWindow(audio1, audio2, left, right));
+        _audio.PlayClose();
     }
 
     public void RunRunningTest()
@@ -100,6 +110,7 @@ public sealed class QualityControlRunner : IQualityControlRunner
 
         try
         {
+            _audio.PlayLaunch();
             _feedback.ShowLoading("Launching Running Test...");
 
             // Prevent screen sleep / display off / screensaver during video.
@@ -189,21 +200,27 @@ public sealed class QualityControlRunner : IQualityControlRunner
     public bool RunTouchscreenTest()
     {
         var window = new TouchscreenTestWindow();
+        _audio.PlayLaunch();
         ShowDialog(window);
+        _audio.PlayClose();
         return window.AllTapped;
     }
 
     public TouchpadTestResult RunTouchpadTest()
     {
         var window = new TouchpadTestWindow();
+        _audio.PlayLaunch();
         ShowDialog(window);
+        _audio.PlayClose();
         return window.Result;
     }
 
     public bool RunMicTest()
     {
         var window = new MicTestWindow();
+        _audio.PlayLaunch();
         ShowDialog(window);
+        _audio.PlayClose();
         return window.Passed;
     }
 
@@ -232,6 +249,7 @@ public sealed class QualityControlRunner : IQualityControlRunner
 
             if (!File.Exists(reportPath))
             {
+                _audio.PlayClose();
                 _feedback.ShowToast("Battery report gagal dibuat.", false);
                 return;
             }
@@ -282,13 +300,22 @@ public sealed class QualityControlRunner : IQualityControlRunner
         try
         {
             var label = displayName ?? Path.GetFileName(resolvedPath);
+            _audio.PlayLaunch();
             _feedback.ShowLoading($"Launching {label}...");
 
             var startInfo = BuildStartInfo(resolvedPath, runAsAdmin);
-            Process.Start(startInfo);
+            var process = Process.Start(startInfo);
 
             _feedback.ShowToast($"{label} dijalankan.", true);
             _logger.Info($"QC launch success: {resolvedPath}");
+
+            // Bring the launched tool to the foreground so it does not open
+            // behind the RyotaQC window (e.g. HDD Sentinel / SSD Health).
+            BringProcessToForeground(process, Path.GetFileNameWithoutExtension(resolvedPath), label);
+
+            // Play a closing cue once the launched tool exits (fire-and-forget),
+            // so quitting any QC utility has its own audio feedback.
+            WatchProcessForAudio(startInfo.FileName, label);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
@@ -526,6 +553,7 @@ public sealed class QualityControlRunner : IQualityControlRunner
     {
         try
         {
+            _audio.PlayLaunch();
             _feedback.ShowLoading($"Launching {label}...");
 
             Process.Start(new ProcessStartInfo
@@ -550,8 +578,215 @@ public sealed class QualityControlRunner : IQualityControlRunner
 
     private void ShowFailure(string message)
     {
+        _audio.PlayClose();
         _feedback.ShowToast(message, false);
     }
+
+    /// <summary>
+    /// Watches a launched process and plays the "tool closed" cue when it
+    /// exits. Best-effort: failures are swallowed. Used so quitting any QC
+    /// utility (Esc / close / stop) has an audible out cue.
+    /// </summary>
+    private void WatchProcessForAudio(string fileName, string label)
+    {
+        try
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var processName = Path.GetFileNameWithoutExtension(fileName);
+                    if (string.IsNullOrWhiteSpace(processName))
+                    {
+                        return;
+                    }
+
+                    // Give the tool a moment to appear, then wait for exit.
+                    await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+                    var deadline = DateTime.UtcNow.AddHours(12);
+                    while (DateTime.UtcNow < deadline)
+                    {
+                        Process[] matches;
+                        try
+                        {
+                            matches = Process.GetProcessesByName(processName);
+                        }
+                        catch
+                        {
+                            return;
+                        }
+
+                        if (matches.Length == 0)
+                        {
+                            break;
+                        }
+
+                        foreach (var match in matches)
+                        {
+                            try
+                            {
+                                await match.WaitForExitAsync().ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                // process already gone
+                            }
+                            finally
+                            {
+                                match.Dispose();
+                            }
+                        }
+
+                        break;
+                    }
+
+                    _audio.PlayClose();
+                    _logger.Info($"QC tool closed: {label}");
+                }
+                catch
+                {
+                    // Best-effort monitoring only.
+                }
+            });
+        }
+        catch
+        {
+            // Best-effort monitoring only.
+        }
+    }
+
+    /// <summary>
+    /// Forces a freshly launched tool window to the foreground. Many QC
+    /// utilities (Hard Disk Sentinel, etc.) create their main window a moment
+    /// after launch, so we retry briefly. Best-effort only.
+    /// </summary>
+    private void BringProcessToForeground(Process? process, string processName, string label)
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                for (var attempt = 0; attempt < 20; attempt++)
+                {
+                    System.Threading.Thread.Sleep(250);
+
+                    Process[] candidates;
+                    if (process is { HasExited: false } && process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        candidates = [process];
+                    }
+                    else
+                    {
+                        try
+                        {
+                            candidates = Process.GetProcessesByName(processName);
+                        }
+                        catch
+                        {
+                            return;
+                        }
+                    }
+
+                    foreach (var candidate in candidates)
+                    {
+                        try
+                        {
+                            candidate.Refresh();
+                            var handle = candidate.MainWindowHandle;
+                            if (handle != IntPtr.Zero)
+                            {
+                                ForceForegroundWindow(handle);
+                                _logger.Info($"QC tool brought to foreground: {label}");
+                                return;
+                            }
+                        }
+                        catch
+                        {
+                            // try next candidate / attempt
+                        }
+                        finally
+                        {
+                            if (!ReferenceEquals(candidate, process))
+                            {
+                                candidate.Dispose();
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort only.
+            }
+        });
+    }
+
+    private static void ForceForegroundWindow(IntPtr hWnd)
+    {
+        try
+        {
+            // Restore if minimised.
+            if (IsIconic(hWnd))
+            {
+                ShowWindow(hWnd, SW_RESTORE);
+            }
+
+            var foreground = GetForegroundWindow();
+            if (foreground == hWnd)
+            {
+                return;
+            }
+
+            var foregroundThread = GetWindowThreadProcessId(foreground, out _);
+            var currentThread = GetCurrentThreadId();
+
+            // AttachThreadInput lets a non-focused thread set the foreground
+            // window, which works around Windows' foreground lock.
+            if (foregroundThread != currentThread)
+            {
+                AttachThreadInput(foregroundThread, currentThread, true);
+                SetForegroundWindow(hWnd);
+                BringWindowToTop(hWnd);
+                AttachThreadInput(foregroundThread, currentThread, false);
+            }
+            else
+            {
+                SetForegroundWindow(hWnd);
+                BringWindowToTop(hWnd);
+            }
+        }
+        catch
+        {
+            // Best-effort only.
+        }
+    }
+
+    private const int SW_RESTORE = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
 
     private void StartRunningTestLogger(string mediaPath, Process? vlcProcess)
     {

@@ -49,13 +49,20 @@ public partial class AudioTestWindow : Window
                 ? mediaPath
                 : _tonePath;
 
+            // Fully detach the current media so a rapid Left/Right slide always
+            // restarts playback from the beginning instead of "continuing"
+            // where the previous cue left off.
             PreviewPlayer.Stop();
             PreviewPlayer.Close();
+            PreviewPlayer.Source = null;
+            PreviewPlayer.Position = TimeSpan.Zero;
 
             PreviewPlayer.Balance = balance;
             PreviewPlayer.Volume = 1.0;
             PreviewPlayer.Source = new Uri(sourcePath);
-            PreviewPlayer.Position = TimeSpan.Zero;
+
+            // MediaElement needs the media opened before seek/play; force an
+            // Open + Play so switching tracks is immediate and smooth.
             PreviewPlayer.Play();
 
             PreviewHint.Visibility = Path.GetExtension(sourcePath).Equals(".mp4", StringComparison.OrdinalIgnoreCase)

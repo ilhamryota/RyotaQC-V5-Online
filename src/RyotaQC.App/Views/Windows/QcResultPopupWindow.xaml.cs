@@ -24,10 +24,14 @@ public partial class QcResultPopupWindow : Window
         InitializeComponent();
         TitleText.Text = title;
         MessageText.Text = message;
+
+        // Audio: result popup appeared (auto action cue).
+        Services.Sfx.Action();
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         Result = QcResult.Pass;
         DialogResult = true;
         Close();
@@ -35,6 +39,7 @@ public partial class QcResultPopupWindow : Window
 
     private void Skip_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         Result = QcResult.Skip;
         DialogResult = true;
         Close();
@@ -42,6 +47,7 @@ public partial class QcResultPopupWindow : Window
 
     private void Fail_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Close();
         Result = QcResult.Fail;
         DialogResult = true;
         Close();

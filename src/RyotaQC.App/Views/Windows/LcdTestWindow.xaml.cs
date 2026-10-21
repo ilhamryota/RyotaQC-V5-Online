@@ -33,12 +33,17 @@ public partial class LcdTestWindow : Window
         CurrentBrush = _colors[_index];
         DataContext = null;
         DataContext = this;
+
+        // Audio: LCD test stepped to the next color (auto play action sfx).
+        Services.Sfx.Navigate();
     }
 
     private void Window_OnKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {
+            // Audio: quitting the LCD test with Esc.
+            Services.Sfx.Close();
             Close();
             return;
         }

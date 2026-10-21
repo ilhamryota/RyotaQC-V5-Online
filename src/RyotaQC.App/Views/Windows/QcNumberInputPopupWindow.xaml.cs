@@ -19,6 +19,9 @@ public partial class QcNumberInputPopupWindow : Window
         TitleText.Text = title;
         QuestionText.Text = question;
         ValueBox.Focus();
+
+        // Audio: numeric input popup appeared (auto action cue).
+        Services.Sfx.Action();
     }
 
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -28,6 +31,7 @@ public partial class QcNumberInputPopupWindow : Window
 
     private void Submit_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         Value = int.TryParse(ValueBox.Text, out var v) ? v : 0;
         DialogResult = true;
         Close();
@@ -35,6 +39,7 @@ public partial class QcNumberInputPopupWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Close();
         Value = -1;
         DialogResult = false;
         Close();

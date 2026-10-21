@@ -19,6 +19,9 @@ public partial class QcResultsPopupWindow : Window
     public QcResultsPopupWindow()
     {
         InitializeComponent();
+
+        // Audio: QC results/submit popup appeared (auto action cue).
+        Services.Sfx.Action();
     }
 
     /// <summary>
@@ -119,6 +122,7 @@ public partial class QcResultsPopupWindow : Window
 
     private void SavePdf_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         // Close the popup first so the save dialog is not hidden behind it
         Close();
         SavePdfCallback?.Invoke();
@@ -126,6 +130,7 @@ public partial class QcResultsPopupWindow : Window
 
     private void SaveNotepad_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         // Close the popup first so the save dialog is not hidden behind it
         Close();
         SaveNotepadCallback?.Invoke();
@@ -133,6 +138,7 @@ public partial class QcResultsPopupWindow : Window
 
     private void Close_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Close();
         Close();
     }
 

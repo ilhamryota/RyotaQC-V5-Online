@@ -17,4 +17,16 @@ public interface IAudioFeedbackService
 
     /// <summary>Played when a QC test finishes and shows the result popup.</summary>
     void PlayAction();
+
+    /// <summary>
+    /// Played when a QC test/tool is launched (button click, auto-play action).
+    /// Uses the same short "action" cue as <see cref="PlayAction"/>.
+    /// </summary>
+    void PlayLaunch();
+
+    /// <summary>
+    /// Played when a QC tool / window is closed or the user quits (Esc / stop).
+    /// Uses the "out" cue.
+    /// </summary>
+    void PlayClose();
 }

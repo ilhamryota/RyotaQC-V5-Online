@@ -36,6 +36,9 @@ public partial class QcTimeInputPopupWindow : Window
         _yellowBelowMinutes = yellowBelowMinutes;
         _greenBelowMinutes = greenBelowMinutes;
         HoursBox.Focus();
+
+        // Audio: time input popup appeared (auto action cue).
+        Services.Sfx.Action();
     }
 
     private void NumberOnly_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -45,6 +48,7 @@ public partial class QcTimeInputPopupWindow : Window
 
     private void Submit_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         int hours = int.TryParse(HoursBox.Text, out var h) ? h : 0;
         int minutes = int.TryParse(MinutesBox.Text, out var m) ? m : 0;
         TotalMinutes = (hours * 60) + minutes;
@@ -55,6 +59,7 @@ public partial class QcTimeInputPopupWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Close();
         ResultText = string.Empty;
         TotalMinutes = 0;
         DialogResult = false;

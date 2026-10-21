@@ -16,10 +16,14 @@ public partial class QcNotePopupWindow : Window
         InitializeComponent();
         QuestionText.Text = question;
         AnswerBox.Focus();
+
+        // Audio: note popup appeared (auto action cue).
+        Services.Sfx.Action();
     }
 
     private void Confirm_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Launch();
         Note = AnswerBox.Text.Trim();
         DialogResult = true;
         Close();
@@ -27,6 +31,7 @@ public partial class QcNotePopupWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        Services.Sfx.Close();
         Note = string.Empty;
         DialogResult = false;
         Close();

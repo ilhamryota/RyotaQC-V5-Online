@@ -332,6 +332,9 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         item.IsRunning = true;
         item.RunCommand.NotifyCanExecuteChanged();
 
+        // Audio: a QC test/tool is being launched.
+        _audio.PlayLaunch();
+
         try
         {
             switch (item.Kind)
@@ -2353,12 +2356,15 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             {
                 ErpSyncStatus = $"Berhasil! Status: {(allPassed ? "READY (PASS)" : "QC_REJECTED")}\n{response.Message}";
                 ErpSyncStatusColorBrush = allPassed ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.Orange;
+                // Audio: submit-to-ERP succeeded (action sfx on popup/result).
+                _audio.PlayAction();
                 _feedback.ShowInfo($"Hasil QC untuk {PraQcCode} berhasil disinkronkan ke EsteraOne ERP!");
             }
             else
             {
                 ErpSyncStatus = $"Gagal sinkron: {response.Message}";
                 ErpSyncStatusColorBrush = System.Windows.Media.Brushes.OrangeRed;
+                _audio.PlayClose();
                 _feedback.ShowError($"Gagal sinkron ke ERP: {response.Message}");
             }
         }
@@ -2366,6 +2372,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         {
             ErpSyncStatus = $"Error: {ex.Message}";
             ErpSyncStatusColorBrush = System.Windows.Media.Brushes.Red;
+            _audio.PlayClose();
             _logger.Error("Error syncing QC to ERP", ex);
             _feedback.ShowError(ex.Message);
         }

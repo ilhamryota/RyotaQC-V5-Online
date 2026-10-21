@@ -73,18 +73,18 @@
                                FontWeight="SemiBold"
                                VerticalAlignment="Center" />
                     <!-- Current app version badge -->
-                    <Border Background="#2233A8FF"
-                            BorderBrush="#555FA8FF"
-                            BorderThickness="1"
-                            CornerRadius="10"
-                            Padding="12,4"
+                    <Border Background="#FF1F6FEB"
+                            BorderBrush="#FF9CC3FF"
+                            BorderThickness="1.5"
+                            CornerRadius="12"
+                            Padding="14,5"
                             Margin="30,0,0,0"
                             VerticalAlignment="Center">
                         <TextBlock Text="{Binding AppVersionText}"
-                                   Foreground="#B9D7FF"
+                                   Foreground="#FFFFFFFF"
                                    FontFamily="Segoe UI"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
+                                   FontSize="14"
+                                   FontWeight="Bold"
                                    VerticalAlignment="Center" />
                     </Border>
                 </StackPanel>
