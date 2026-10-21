@@ -3,7 +3,7 @@
 ; Inno Setup Script - repack-style installer
 ; Author: IlhamRyota
 ;
-; Design notes (v5.0.2):
+; Design notes (v5.0.3):
 ;  * Native Inno Setup light theme is preserved - every label, checkbox,
 ;    memo and footer uses native black text on light background for maximum
 ;    readability.
@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.2"
+  #define AppVersion "5.0.3"
 #endif
 
 #define AppName "RyotaQC V5"
