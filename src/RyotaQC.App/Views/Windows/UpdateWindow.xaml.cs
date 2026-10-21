@@ -1,0 +1,107 @@
+using System;
+using System.ComponentModel;
+using System.Threading.Tasks;
+using System.Windows;
+using RyotaQC.App.Models;
+using RyotaQC.App.Services;
+
+namespace RyotaQC.App.Views.Windows;
+
+public partial class UpdateWindow : Window
+{
+    private readonly IAppUpdateService _updateService;
+    private readonly AppUpdateInfo _update;
+    private readonly Version _currentVersion;
+    private bool _isUpdating;
+    private bool _updateStarted;
+
+    public UpdateWindow(IAppUpdateService updateService, AppUpdateInfo update, Version currentVersion)
+    {
+        _updateService = updateService;
+        _update = update;
+        _currentVersion = currentVersion;
+
+        InitializeComponent();
+        PopulateInfo();
+    }
+
+    private void PopulateInfo()
+    {
+        VersionText.Text = _update.FormattedVersion;
+        CurrentVersionText.Text = "v" + _currentVersion.ToString(3);
+        NewVersionText.Text = _update.FormattedVersion;
+        DateText.Text = "Tanggal rilis: " + _update.FormattedPublishedDate;
+        NotesText.Text = string.IsNullOrWhiteSpace(_update.ReleaseNotes)
+            ? "Tidak ada catatan rilis."
+            : _update.ReleaseNotes;
+    }
+
+    private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isUpdating)
+        {
+            return;
+        }
+        _isUpdating = true;
+        _updateStarted = true;
+
+        UpdateButton.IsEnabled = false;
+        UpdateButton.Content = "Mengunduh...";
+        ProgressPanel.Visibility = Visibility.Visible;
+
+        var progress = new Progress<int>(pct =>
+        {
+            DownloadProgress.Value = pct;
+            ProgressText.Text = $"Mengunduh update... {pct}%";
+        });
+
+        var ok = await _updateService.DownloadAndApplyUpdateAsync(_update, progress);
+
+        if (ok)
+        {
+            ProgressText.Text = "Update selesai. Aplikasi akan dimulai ulang...";
+            UpdateButton.Content = "Menutup...";
+
+            // Give the updater batch script a moment to spin up before we exit.
+            await Task.Delay(1500);
+
+            Application.Current.Shutdown();
+        }
+        else
+        {
+            ProgressText.Text = "Gagal mengunduh update. Periksa koneksi internet lalu coba lagi.";
+            UpdateButton.IsEnabled = true;
+            UpdateButton.Content = "Coba Lagi";
+            _isUpdating = false;
+            _updateStarted = false;
+        }
+    }
+
+    /// <summary>
+    /// Prevents the user from closing the window (via the X button or Alt+F4)
+    /// once an update has started. Before the update starts, allow closing
+    /// only via the mandatory Update button path (no "later" option).
+    /// </summary>
+    private void Window_Closing(object? sender, CancelEventArgs e)
+    {
+        // Block closing once the update is in progress.
+        if (_updateStarted)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        // Even before the update starts, we make the update mandatory:
+        // block the close (X) button so the user cannot dismiss the dialog
+        // without updating. They can still minimize / move the window.
+        // The only way forward is to click "Update Sekarang".
+        e.Cancel = true;
+
+        // Show a toast-style hint to remind the user the update is mandatory.
+        MessageBox.Show(
+            "Update ini wajib diinstal. Klik tombol \"Update Sekarang\" untuk melanjutkan.",
+            "Update Wajib",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+}

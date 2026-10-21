@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.142" />
+    <PackageReference Include="QuestPDF" Version="2025.7.4" />
+    <PackageReference Include="System.Management" Version="10.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Copy tile/wallpaper images to output so ImagePathConverter can
+         load them at runtime via absolute file paths. XAML-referenced
+         images are excluded here and embedded as Resource instead. -->
+    <Content Include="Assets\Images\**\*.*"
+              Exclude="Assets\Images\Backgrounds\bg.jpg;
+                       Assets\Images\Tiles\logo.ico;
+                       Assets\Images\Icons\QC\benchmark.png;
+                       Assets\Images\Icons\QC\battery-test.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Update="Config\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Embed images referenced from XAML so they resolve correctly inside
+         a single-file (self-contained) publish. Relative 'Assets/...' paths
+         are resolved by WPF as content files, which fails when the app
+         base directory is null in single-file mode. -->
+    <Resource Include="Assets\Images\Backgrounds\bg.jpg" />
+    <Resource Include="Assets\Images\Tiles\logo.ico" />
+    <Resource Include="Assets\Images\Icons\QC\benchmark.png" />
+    <Resource Include="Assets\Images\Icons\QC\battery-test.png" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\Images\Tiles\logo.ico</ApplicationIcon>
+    <Company>RyotaQC</Company>
+    <Authors>RyotaQC</Authors>
+    <Product>RyotaQC V5</Product>
+    <AssemblyTitle>RyotaQC V5</AssemblyTitle>
+    <Copyright>Copyright © RyotaQC</Copyright>
+    <Version>5.0.2</Version>
+    <FileVersion>5.0.2.0</FileVersion>
+    <AssemblyVersion>5.0.2.0</AssemblyVersion>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+</Project>
