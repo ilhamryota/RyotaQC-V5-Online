@@ -212,31 +212,83 @@ public sealed class AppUpdateService : IAppUpdateService
                     if (totalBytes > 0)
                     {
                         var pct = (int)((receivedBytes * 100) / totalBytes);
-                        progress?.Report(pct);
+                        progress?.Report(Math.Min(pct, 100));
                     }
                 }
+            }
+
+            // Guard against truncated downloads: if the server declared a size
+            // and we received less, the transfer was cut off (network drop,
+            // antivirus interference, or a proxy timeout).
+            if (totalBytes > 0 && receivedBytes < totalBytes)
+            {
+                var gotMb = receivedBytes / (1024.0 * 1024.0);
+                var wantMb = totalBytes / (1024.0 * 1024.0);
+                return (false,
+                    $"Unduhan terputus: hanya {gotMb:F1} MB dari {wantMb:F1} MB. Coba lagi.");
+            }
+
+            if (receivedBytes == 0)
+            {
+                return (false, "Unduhan kosong (0 byte). Periksa koneksi internet.");
             }
 
             progress?.Report(100);
 
             if (isInstaller)
             {
-                // Launch the official installer silently and exit. Inno Setup
-                // handles closing the running app, installing, and relaunching.
-                // /SILENT shows progress; /NORESTART avoids a reboot prompt;
-                // /CLOSEAPPLICATIONS closes the running RyotaQC instance.
+                // Launch the official installer and exit.
+                //
+                // The app normally lives under "C:\Program Files\..." which
+                // requires elevation to modify. ProcessStartInfo with
+                // UseShellExecute + Verb="runas" triggers a UAC prompt so the
+                // installer can replace files and relaunch the app afterwards.
+                //
+                // Flags:
+                //   /SILENT              show progress, no wizard pages
+                //   /NORESTART           never force a reboot
+                //   /CLOSEAPPLICATIONS   close the running RyotaQC instance
+                //   /RESTARTAPPLICATIONS relaunch the app when finished
                 var installerPsi = new ProcessStartInfo
                 {
                     FileName = downloadPath,
                     Arguments = "/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
                     UseShellExecute = true,
-                    WorkingDirectory = tempDir
+                    WorkingDirectory = tempDir,
+                    Verb = "runas"
                 };
-                Process.Start(installerPsi);
+
+                try
+                {
+                    Process.Start(installerPsi);
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    // User declined the UAC prompt (or elevation is blocked).
+                    return (false,
+                        "Izin Administrator ditolak. Jalankan ulang sebagai Administrator " +
+                        "atau klik Coba Lagi lalu setujui prompt UAC.");
+                }
+
                 return (true, null);
             }
 
             // ---- Legacy ZIP path: extract and swap files via a batch script. ----
+
+            // Validate the archive before extracting. A truncated or corrupt ZIP
+            // throws here instead of silently producing a partial install.
+            try
+            {
+                using var archive = System.IO.Compression.ZipFile.OpenRead(downloadPath);
+                if (archive.Entries.Count == 0)
+                {
+                    return (false, "Paket update kosong atau rusak. Coba lagi.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Paket update tidak valid (ZIP rusak): {ex.Message}");
+            }
 
             // Extract the ZIP.
             ZipFile.ExtractToDirectory(downloadPath, extractDir, overwriteFiles: true);
@@ -255,21 +307,45 @@ public sealed class AppUpdateService : IAppUpdateService
                 ?? Path.Combine(appDir, "RyotaQC.App.exe");
             var pid = Environment.ProcessId;
 
+            // Detect whether the target directory needs elevation to write.
+            // Installs under Program Files always do; user-local installs do not.
+            var needsElevation = !CanWriteToDirectory(appDir);
+
             // Build the updater batch script. It waits for the current app
             // process to exit, copies the new files over, restarts the app,
             // and cleans up the temp directory.
+            //
+            // When the install lives under Program Files the copy requires
+            // Administrator rights, so the script re-launches itself elevated
+            // via PowerShell Start-Process -Verb RunAs (one UAC prompt).
             var updaterPath = Path.Combine(tempDir, "apply_update.bat");
+
             var script =
                 "@echo off" + Environment.NewLine +
                 "chcp 65001 >nul" + Environment.NewLine +
                 "title RyotaQC Updater" + Environment.NewLine +
-                "setlocal" + Environment.NewLine +
+                "setlocal EnableDelayedExpansion" + Environment.NewLine +
                 "set \"SOURCE=" + sourceDir + "\"" + Environment.NewLine +
                 "set \"TARGET=" + appDir + "\"" + Environment.NewLine +
                 "set \"APP_EXE=" + appExe + "\"" + Environment.NewLine +
                 "set \"PID=" + pid + "\"" + Environment.NewLine +
                 "set \"TEMP_DIR=" + tempDir + "\"" + Environment.NewLine +
-                Environment.NewLine +
+                Environment.NewLine;
+
+            if (needsElevation)
+            {
+                // Re-launch this same script elevated. %~f0 is the full path of
+                // the running batch file; the ELEVATED marker stops recursion.
+                script +=
+                    "if not \"%1\"==\"ELEVATED\" (" + Environment.NewLine +
+                    "  echo Meminta izin Administrator..." + Environment.NewLine +
+                    "  powershell -NoProfile -ExecutionPolicy Bypass -Command \"Start-Process -FilePath '%~f0' -ArgumentList 'ELEVATED' -Verb RunAs\"" + Environment.NewLine +
+                    "  exit /b" + Environment.NewLine +
+                    ")" + Environment.NewLine +
+                    Environment.NewLine;
+            }
+
+            script +=
                 "echo Menunggu aplikasi RyotaQC ditutup..." + Environment.NewLine +
                 ":wait_loop" + Environment.NewLine +
                 "tasklist /FI \"PID eq %PID%\" 2>nul | find \"%PID%\" >nul" + Environment.NewLine +
@@ -280,6 +356,11 @@ public sealed class AppUpdateService : IAppUpdateService
                 Environment.NewLine +
                 "echo Menyalin file update..." + Environment.NewLine +
                 "xcopy /E /Y /I \"%SOURCE%\\*\" \"%TARGET%\\\" >nul" + Environment.NewLine +
+                "if errorlevel 1 (" + Environment.NewLine +
+                "  echo GAGAL menyalin file. Coba jalankan installer manual." + Environment.NewLine +
+                "  pause" + Environment.NewLine +
+                "  exit /b 1" + Environment.NewLine +
+                ")" + Environment.NewLine +
                 Environment.NewLine +
                 "echo Memulai ulang aplikasi..." + Environment.NewLine +
                 "start \"\" \"%APP_EXE%\"" + Environment.NewLine +
@@ -310,6 +391,29 @@ public sealed class AppUpdateService : IAppUpdateService
             try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); }
             catch { /* ignore */ }
             return (false, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Returns true when the current user can create files in
+    /// <paramref name="directory"/>. Used to decide whether the updater needs
+    /// an Administrator (UAC) prompt.
+    /// </summary>
+    private static bool CanWriteToDirectory(string directory)
+    {
+        try
+        {
+            var probe = Path.Combine(directory, ".ryotaqc_write_probe_" + Guid.NewGuid().ToString("N"));
+            using (var fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                fs.WriteByte(0);
+            }
+            File.Delete(probe);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 }
