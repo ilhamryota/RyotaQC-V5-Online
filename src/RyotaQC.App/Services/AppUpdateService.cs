@@ -24,9 +24,18 @@ public sealed class AppUpdateService : IAppUpdateService
     private const string LatestReleaseApiUrl =
         "https://api.github.com/repos/" + RepoOwner + "/" + RepoName + "/releases/latest";
 
+    // Shared client for the small release-metadata call (fast, 20s is plenty).
     private static readonly HttpClient Http = new()
     {
         Timeout = TimeSpan.FromSeconds(20)
+    };
+
+    // Dedicated client for downloading release assets. Installer packages are
+    // hundreds of MB, so a short timeout would abort the transfer mid-stream.
+    // 30 minutes covers very slow connections without hanging forever.
+    private static readonly HttpClient DownloadHttp = new()
+    {
+        Timeout = TimeSpan.FromMinutes(30)
     };
 
     public Version GetCurrentVersion()
@@ -182,7 +191,7 @@ public sealed class AppUpdateService : IAppUpdateService
             using var request = new HttpRequestMessage(HttpMethod.Get, update.DownloadUrl);
             request.Headers.Add("User-Agent", "RyotaQC-V5-Online-Updater");
 
-            using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await DownloadHttp.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode)
             {
                 return (false, $"HTTP {(int)response.StatusCode} saat mengunduh {Path.GetFileName(update.DownloadUrl)}");
