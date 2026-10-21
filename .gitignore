@@ -164,3 +164,7 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+## Update package ZIP (file hasil build untuk release)
+RyotaQC-V5-Update-v*.zip
+
