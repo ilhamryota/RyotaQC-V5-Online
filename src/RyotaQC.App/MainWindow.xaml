@@ -6,7 +6,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:controls="clr-namespace:RyotaQC.App.Controls"
         mc:Ignorable="d"
-        Title="RyotaQC V5.0.2"
+        Title="RyotaQC V5.0.3"
         Width="1280"
         Height="800"
         MinWidth="1100"

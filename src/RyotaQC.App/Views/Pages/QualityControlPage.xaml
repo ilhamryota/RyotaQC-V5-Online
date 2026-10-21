@@ -121,22 +121,6 @@
                              FontSize="13"
                              Margin="0" />
 
-                    <TextBlock Text="CATATAN TEKNISI"
-                               Margin="0,10,0,4"
-                               FontFamily="Bahnschrift SemiBold"
-                               FontSize="11"
-                               Foreground="{DynamicResource TextMutedBrush}" />
-
-                    <TextBox Text="{Binding Notes, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource SearchTextBoxStyle}"
-                             Height="90"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Disabled"
-                             FontSize="13"
-                             Margin="0" />
-
                     <Button Content="Hasil QC"
                             Command="{Binding ShowOverallQcResultsCommand}"
                             Style="{StaticResource RoundedActionButtonStyle}"
@@ -154,7 +138,7 @@
                                        Foreground="#FF60A5FA"
                                        Margin="0,0,0,6" />
                             
-                            <TextBlock Text="Kode Pra-QC Unit"
+                            <TextBlock Text="No PO"
                                        FontFamily="Bahnschrift SemiBold"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextMutedBrush}"
@@ -165,22 +149,95 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding PraQcCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Text="{Binding PoNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource SearchTextBoxStyle}"
                                          Height="34"
                                          FontSize="13"
                                          VerticalContentAlignment="Center"
                                          Padding="8,0"
-                                         ToolTip="Scan barcode atau ketik Kode Pra-QC (e.g. PO2610-0042.1)" />
+                                         ToolTip="Ketik No PO dari ERP (e.g. PO-0003)" />
                                 <Button Grid.Column="1"
-                                        Content="Cek"
-                                        Command="{Binding LookupUnitInfoCommand}"
+                                        Content="Cari"
+                                        Command="{Binding LookupPoUnitsCommand}"
                                         Style="{StaticResource RoundedActionButtonStyle}"
-                                        Width="52"
+                                        Width="60"
                                         Height="34"
                                         Margin="6,0,0,0"
-                                        ToolTip="Lookup info unit di ERP" />
+                                        ToolTip="Cari unit-unit pada PO ini" />
                             </Grid>
+
+                            <!-- Daftar EST codes (po units) -->
+                            <StackPanel Visibility="{Binding HasPoUnits, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        Margin="0,4,0,8">
+                                <TextBlock Text="PILIH KODE UNIT (EST)"
+                                           FontFamily="Bahnschrift SemiBold"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding PoUnits}"
+                                           SelectedItem="{Binding SelectedUnit, Mode=TwoWay}"
+                                           Height="34"
+                                           FontSize="13"
+                                           ToolTip="Pilih unit (Lenovo diprioritaskan di atas)">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding InternalId}" FontWeight="SemiBold" />
+                                                <TextBlock Text=" — " />
+                                                <TextBlock Text="{Binding Brand}" Foreground="#FF60A5FA" />
+                                                <TextBlock Text=" / " />
+                                                <TextBlock Text="{Binding ProductName}" Foreground="{DynamicResource TextMutedBrush}" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <!-- Tester + Hubungkan -->
+                            <Grid Margin="0,4,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0"
+                                           ItemsSource="{Binding Testers}"
+                                           SelectedItem="{Binding SelectedTester, Mode=TwoWay}"
+                                           Height="34"
+                                           FontSize="13"
+                                           ToolTip="Pilih tester QC (atau daftar baru)">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Grid.Column="1"
+                                        Content="Tester+"
+                                        Command="{Binding RegisterTesterCommand}"
+                                        Style="{StaticResource RoundedActionButtonStyle}"
+                                        Height="34"
+                                        Margin="6,0,0,0"
+                                        ToolTip="Daftarkan tester baru (isi nama di sebelah kanan)" />
+                                <TextBox Grid.Column="2"
+                                         Text="{Binding TesterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource SearchTextBoxStyle}"
+                                         Width="120"
+                                         Height="34"
+                                         Margin="6,0,0,0"
+                                         FontSize="12"
+                                         VerticalContentAlignment="Center"
+                                         Padding="6,0"
+                                         ToolTip="Nama tester baru" />
+                            </Grid>
+
+                            <Button Content="Hubungkan"
+                                    Command="{Binding ConnectCommand}"
+                                    Style="{StaticResource BigPrimaryButtonStyle}"
+                                    Height="36"
+                                    Margin="0,4,0,8"
+                                    HorizontalAlignment="Stretch"
+                                    ToolTip="Ikat app ini ke unit EST terpilih (tester wajib dipilih)" />
 
                             <Border CornerRadius="6" Background="#FF0B0F17" BorderBrush="#FF1E293B" BorderThickness="1" Padding="8,6" Margin="0,0,0,8"
                                     Visibility="{Binding HasErpUnitDetails, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -190,13 +247,26 @@
                                            TextWrapping="Wrap" />
                             </Border>
 
-                            <Button Content="Kirim Hasil ke ERP"
+                            <!-- Status dropdown -->
+                            <TextBlock Text="STATUS QC"
+                                       FontFamily="Bahnschrift SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="0,4,0,4" />
+                            <ComboBox ItemsSource="{Binding QcStatusOptions}"
+                                       SelectedItem="{Binding QcStatus, Mode=TwoWay}"
+                                       Height="34"
+                                       FontSize="13"
+                                       Margin="0,0,0,8"
+                                       ToolTip="Pilih status akhir QC (LULUS=Selesai, SERVICE=Servis, RETUR=Retur, RUNNING_TEST=Tes Running)" />
+
+                            <Button Content="Kirim ke ERP"
                                     Command="{Binding SyncToErpCommand}"
                                     Style="{StaticResource BigPrimaryButtonStyle}"
                                     Height="38"
                                     Margin="0,4,0,0"
                                     HorizontalAlignment="Stretch"
-                                    ToolTip="Kirim otomatis spek WMI dan hasil 15 parameter QC ke EsteraOne ERP Hub" />
+                                    ToolTip="Kirim spek + hasil QC ke ERP dan pindahkan Kanban unit" />
 
                             <TextBlock Text="{Binding ErpSyncStatus}"
                                        FontSize="11"

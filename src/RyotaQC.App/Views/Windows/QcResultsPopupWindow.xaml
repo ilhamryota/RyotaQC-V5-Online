@@ -76,14 +76,14 @@
                         </Button.Template>
                     </Button>
 
-                    <!-- Save Notepad -->
-                    <Button Width="160" Height="42" Margin="0,0,10,0" Click="SaveNotepad_Click" Cursor="Hand">
+                    <!-- Save Notepad → Kirim ke ERP -->
+                    <Button Width="170" Height="42" Margin="0,0,10,0" Click="SaveNotepad_Click" Cursor="Hand">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
                                 <Border x:Name="NotepadBorder" CornerRadius="12" Background="#FF1E435A" BorderBrush="#556FA7FF" BorderThickness="1.5">
                                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Orientation="Horizontal">
                                         <TextBlock Text="&#xE70F;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                        <TextBlock Text="Save Notepad" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
+                                        <TextBlock Text="Kirim ke ERP" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Border>
                                 <ControlTemplate.Triggers>

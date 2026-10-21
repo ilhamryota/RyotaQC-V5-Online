@@ -11,6 +11,9 @@ public interface IErpSyncService
 {
     Task<ErpSyncResponse> SubmitQcAsync(ErpQcPayload payload);
     Task<ErpUnitInfoResponse?> LookupUnitAsync(string code);
+    Task<PoUnitsResponse?> LookupPoUnitsAsync(string poNumber, string preferredBrand = "Lenovo");
+    Task<TestersResponse?> GetTestersAsync();
+    Task<TestersResponse?> RegisterTesterAsync(string name);
 }
 
 public sealed class ErpSyncService : IErpSyncService
@@ -24,7 +27,7 @@ public sealed class ErpSyncService : IErpSyncService
         _logger = logger;
         // Default to Contabo Ryota QC Hub Pod (:8005)
         _hubBaseUrl = string.IsNullOrWhiteSpace(hubBaseUrl) ? "http://109.123.239.163:8005" : hubBaseUrl;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
     }
 
     public async Task<ErpSyncResponse> SubmitQcAsync(ErpQcPayload payload)
@@ -65,6 +68,56 @@ public sealed class ErpSyncService : IErpSyncService
             return null;
         }
     }
+
+    public async Task<PoUnitsResponse?> LookupPoUnitsAsync(string poNumber, string preferredBrand = "Lenovo")
+    {
+        try
+        {
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/po/{Uri.EscapeDataString(poNumber.Trim())}/units?brand={Uri.EscapeDataString(preferredBrand)}";
+            var response = await _httpClient.GetAsync(url);
+            var responseString = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<PoUnitsResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Gagal lookup PO units untuk PO: {poNumber}", ex);
+            return null;
+        }
+    }
+
+    public async Task<TestersResponse?> GetTestersAsync()
+    {
+        try
+        {
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/testers";
+            var response = await _httpClient.GetAsync(url);
+            var responseString = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<TestersResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Gagal mengambil list tester", ex);
+            return null;
+        }
+    }
+
+    public async Task<TestersResponse?> RegisterTesterAsync(string name)
+    {
+        try
+        {
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/testers";
+            var json = JsonSerializer.Serialize(new { name }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(url, content);
+            var responseString = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<TestersResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Gagal register tester: {name}", ex);
+            return null;
+        }
+    }
 }
 
 public class ErpQcPayload
@@ -73,13 +126,31 @@ public class ErpQcPayload
     public string SerialNumber { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
-    public Dictionary<string, string> Specs { get; set; } = new();
+    public ErpSpecs Specs { get; set; } = new();
     public int? BatteryHealth { get; set; }
     public int? StorageHealth { get; set; }
     public string Status { get; set; } = "PASS";
+    public string QcStatus { get; set; } = "LULUS";
     public Dictionary<string, object> Tests { get; set; } = new();
     public string TestedBy { get; set; } = "Teknisi QC";
+    public string? TesterId { get; set; }
     public string Notes { get; set; } = string.Empty;
+    public decimal RepairCost { get; set; }
+    public string RejectReason { get; set; } = string.Empty;
+}
+
+public class ErpSpecs
+{
+    public string Processor { get; set; } = string.Empty;
+    public string Ram { get; set; } = string.Empty;
+    public string StorageHdd { get; set; } = string.Empty;
+    public string StorageSsd { get; set; } = string.Empty;
+    public string Vga { get; set; } = string.Empty;
+    public string VgaIntegrated { get; set; } = string.Empty;
+    public string VgaDedicated { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    // Back-compat single storage field
+    public string Storage { get; set; } = string.Empty;
 }
 
 public class ErpSyncResponse
@@ -106,4 +177,48 @@ public class ErpUnitData
     public string Model { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string PoNumber { get; set; } = string.Empty;
+}
+
+// ===== PO Units Lookup response types =====
+public class PoUnitsResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public PoUnitsData? Data { get; set; }
+}
+
+public class PoUnitsData
+{
+    public string PoNumber { get; set; } = string.Empty;
+    public string PaymentStatus { get; set; } = string.Empty;
+    public string ReceiptStatus { get; set; } = string.Empty;
+    public List<PoUnitItem> Units { get; set; } = new();
+    public string PreferredBrand { get; set; } = string.Empty;
+}
+
+public class PoUnitItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string PraQcCode { get; set; } = string.Empty;
+    public string InternalId { get; set; } = string.Empty;
+    public string SerialNumber { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public string Brand { get; set; } = string.Empty;
+}
+
+// ===== Testers response types =====
+public class TestersResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public List<TesterInfo> Data { get; set; } = new();
+    public TesterInfo? SingleTester { get; set; }
+}
+
+public class TesterInfo
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
 }

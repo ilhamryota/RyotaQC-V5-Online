@@ -89,11 +89,79 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     [ObservableProperty]
     private System.Windows.Media.Brush erpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGray;
 
+    // ===== NEW: PO-based workflow =====
+    [ObservableProperty]
+    private string poNumber = string.Empty;
+
+    [ObservableProperty]
+    private bool hasPoUnits;
+
+    [ObservableProperty]
+    private PoUnitItem? selectedUnit;
+
+    [ObservableProperty]
+    private bool isConnected;
+
+    [ObservableProperty]
+    private string testerName = string.Empty;
+
+    [ObservableProperty]
+    private TesterInfo? selectedTester;
+
+    [ObservableProperty]
+    private string qcStatus = "LULUS";
+
+    [ObservableProperty]
+    private bool isLookingUpPo;
+
+    [ObservableProperty]
+    private bool isRegisteringTester;
+
+    public ObservableCollection<PoUnitItem> PoUnits { get; } = new();
+
+    public ObservableCollection<TesterInfo> Testers { get; } = new();
+
+    public ObservableCollection<string> QcStatusOptions { get; } = new()
+    {
+        "LULUS",
+        "SERVICE",
+        "RETUR",
+        "RUNNING_TEST"
+    };
+
     public IAsyncRelayCommand SyncToErpCommand { get; }
 
     public IAsyncRelayCommand LookupUnitInfoCommand { get; }
 
+    public IAsyncRelayCommand LookupPoUnitsCommand { get; }
+
+    public IAsyncRelayCommand RegisterTesterCommand { get; }
+
+    public IAsyncRelayCommand RefreshTestersCommand { get; }
+
+    public IAsyncRelayCommand ConnectCommand { get; }
+
     partial void OnIsSyncingErpChanged(bool value) => SyncToErpCommand.NotifyCanExecuteChanged();
+
+    partial void OnSelectedUnitChanged(PoUnitItem? value)
+    {
+        ConnectCommand.NotifyCanExecuteChanged();
+        if (value != null)
+        {
+            PraQcCode = value.PraQcCode;
+            ErpUnitDetails = $"Unit: {value.ProductName} ({value.Brand})\nKode: {value.InternalId} | Status: {value.Status}";
+            HasErpUnitDetails = true;
+        }
+    }
+
+    partial void OnIsConnectedChanged(bool value)
+    {
+        SyncToErpCommand.NotifyCanExecuteChanged();
+        ErpSyncStatus = value ? "Terhubung ke unit ERP" : string.Empty;
+        ErpSyncStatusColorBrush = value
+            ? System.Windows.Media.Brushes.LightGreen
+            : System.Windows.Media.Brushes.LightGray;
+    }
 
     public QualityControlPageViewModel(
         IQualityControlRunner runner,
@@ -139,8 +207,15 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         ShowQcResultsCommand = new AsyncRelayCommand(ShowQcResultsAsync);
         ShowOverallQcResultsCommand = new AsyncRelayCommand(ShowOverallQcResultsAsync);
         SaveNotepadCommand = new AsyncRelayCommand(SaveNotepadAsync, () => !IsSavingPdf);
-        SyncToErpCommand = new AsyncRelayCommand(SyncToErpAsync, () => !IsSyncingErp);
+        SyncToErpCommand = new AsyncRelayCommand(SyncToErpAsync, () => !IsSyncingErp && IsConnected);
         LookupUnitInfoCommand = new AsyncRelayCommand(LookupUnitInfoAsync);
+        LookupPoUnitsCommand = new AsyncRelayCommand(LookupPoUnitsAsync, () => !IsLookingUpPo);
+        RegisterTesterCommand = new AsyncRelayCommand(RegisterTesterAsync, () => !IsRegisteringTester);
+        RefreshTestersCommand = new AsyncRelayCommand(RefreshTestersAsync);
+        ConnectCommand = new AsyncRelayCommand(ConnectAsync, () => SelectedUnit is not null && !IsConnected);
+
+        // Pre-load testers list in background (fire-and-forget)
+        _ = RefreshTestersAsync();
 
         BuildChecklistItems();
         OnPropertyChanged(nameof(BenchmarkChecklistItem));
@@ -673,7 +748,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             Views.Windows.QcResultsPopupWindow.Show(
                 rows,
                 savePdfCallback: async () => await SavePdfAsync(),
-                saveNotepadCallback: async () => await SaveNotepadAsync());
+                saveNotepadCallback: async () => await SyncToErpAsync());
         });
     }
 
@@ -2294,7 +2369,13 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(PraQcCode))
         {
-            _feedback.ShowWarning("Masukkan Kode Pra-QC unit sebelum sinkronisasi ke ERP.");
+            _feedback.ShowWarning("Pilih unit dari daftar PO terlebih dahulu sebelum kirim ke ERP.");
+            return;
+        }
+
+        if (!IsConnected)
+        {
+            _feedback.ShowWarning("Klik Hubungkan terlebih dahulu untuk binding app ke unit ERP.");
             return;
         }
 
@@ -2307,16 +2388,39 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             // 1. Ambil spesifikasi WMI hardware
             var sysInfo = await _systemInfoService.GetSystemInfoAsync();
 
-            var specs = new Dictionary<string, string>
+            // 2. Bangun ErpSpecs (support dual storage HDD+SSD dan dual VGA)
+            var specs = new ErpSpecs
             {
-                ["processor"] = sysInfo.CpuName,
-                ["ram"] = string.IsNullOrWhiteSpace(sysInfo.RamInstalled) ? sysInfo.RamTotal : sysInfo.RamInstalled,
-                ["storage"] = string.IsNullOrWhiteSpace(sysInfo.StorageDetail) ? sysInfo.StorageSummary : sysInfo.StorageDetail,
-                ["vga"] = sysInfo.VgaInfo,
-                ["display"] = string.IsNullOrWhiteSpace(sysInfo.DisplayDetail) ? sysInfo.LcdInfo : sysInfo.DisplayDetail
+                Processor = sysInfo.CpuName,
+                Ram = string.IsNullOrWhiteSpace(sysInfo.RamInstalled) ? sysInfo.RamTotal : sysInfo.RamInstalled,
+                Storage = string.IsNullOrWhiteSpace(sysInfo.StorageDetail) ? sysInfo.StorageSummary : sysInfo.StorageDetail,
+                Display = string.IsNullOrWhiteSpace(sysInfo.DisplayDetail) ? sysInfo.LcdInfo : sysInfo.DisplayDetail
             };
 
-            // 2. Kumpulkan hasil 15 parameter checklist
+            // Coba split storage HDD vs SSD jika ada info dual
+            if (!string.IsNullOrWhiteSpace(sysInfo.StorageDetail))
+            {
+                var (hdd, ssd) = SplitStorageHddSsd(sysInfo.StorageDetail);
+                specs.StorageHdd = hdd;
+                specs.StorageSsd = ssd;
+            }
+
+            // VGA: cek apakah dual (integrated + dedicated)
+            if (!string.IsNullOrWhiteSpace(sysInfo.VgaInfo))
+            {
+                var (integrated, dedicated) = SplitVgaIntegratedDedicated(sysInfo.VgaInfo);
+                if (!string.IsNullOrEmpty(integrated) && !string.IsNullOrEmpty(dedicated))
+                {
+                    specs.VgaIntegrated = integrated;
+                    specs.VgaDedicated = dedicated;
+                }
+                else
+                {
+                    specs.Vga = sysInfo.VgaInfo;
+                }
+            }
+
+            // 3. Kumpulkan hasil parameter checklist
             var tests = new Dictionary<string, object>();
             bool allPassed = true;
             foreach (var item in ChecklistItems)
@@ -2334,6 +2438,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 }
             }
 
+            // 4. Bangun payload dengan QcStatus + TesterId
             var payload = new ErpQcPayload
             {
                 PraQcCode = PraQcCode.Trim(),
@@ -2344,28 +2449,29 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 BatteryHealth = _batteryHealthPercent,
                 StorageHealth = _storageHealthPercent,
                 Status = allPassed ? "PASS" : "FAIL",
+                QcStatus = string.IsNullOrWhiteSpace(QcStatus) ? "LULUS" : QcStatus.ToUpperInvariant(),
                 Tests = tests,
-                TestedBy = sysInfo.UserName ?? "Teknisi QC",
-                Notes = Notes
+                TestedBy = SelectedTester?.Name ?? sysInfo.UserName ?? "Teknisi QC",
+                TesterId = SelectedTester?.Id,
+                Notes = string.Empty
             };
 
-            // 3. Kirim ke Hub Contabo :8005
+            // 5. Kirim ke Hub Contabo :8005
             var response = await _erpSyncService.SubmitQcAsync(payload);
 
             if (response.Success)
             {
-                ErpSyncStatus = $"Berhasil! Status: {(allPassed ? "READY (PASS)" : "QC_REJECTED")}\n{response.Message}";
-                ErpSyncStatusColorBrush = allPassed ? System.Windows.Media.Brushes.LightGreen : System.Windows.Media.Brushes.Orange;
-                // Audio: submit-to-ERP succeeded (action sfx on popup/result).
+                ErpSyncStatus = $"Berhasil! Status: {payload.QcStatus}\n{response.Message}";
+                ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
                 _audio.PlayAction();
-                _feedback.ShowInfo($"Hasil QC untuk {PraQcCode} berhasil disinkronkan ke EsteraOne ERP!");
+                _feedback.ShowInfo($"Hasil QC untuk {PraQcCode} berhasil dikirim ke ERP!\nStatus: {payload.QcStatus}");
             }
             else
             {
-                ErpSyncStatus = $"Gagal sinkron: {response.Message}";
+                ErpSyncStatus = $"Gagal kirim: {response.Message}";
                 ErpSyncStatusColorBrush = System.Windows.Media.Brushes.OrangeRed;
                 _audio.PlayClose();
-                _feedback.ShowError($"Gagal sinkron ke ERP: {response.Message}");
+                _feedback.ShowError($"Gagal kirim ke ERP: {response.Message}");
             }
         }
         catch (Exception ex)
@@ -2380,6 +2486,195 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         {
             IsSyncingErp = false;
         }
+    }
+
+    /// <summary>
+    /// Split storage detail menjadi HDD vs SSD.
+    /// Contoh input: "Samsung SSD 512GB / Seagate HDD 1TB"
+    /// </summary>
+    private static (string hdd, string ssd) SplitStorageHddSsd(string storageDetail)
+    {
+        if (string.IsNullOrWhiteSpace(storageDetail)) return (string.Empty, string.Empty);
+
+        var parts = storageDetail.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string hdd = string.Empty, ssd = string.Empty;
+
+        foreach (var p in parts)
+        {
+            if (p.Contains("HDD", StringComparison.OrdinalIgnoreCase) && !p.Contains("SSD", StringComparison.OrdinalIgnoreCase))
+            {
+                hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
+            }
+            else if (p.Contains("SSD", StringComparison.OrdinalIgnoreCase))
+            {
+                ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
+            }
+        }
+
+        return (hdd, ssd);
+    }
+
+    /// <summary>
+    /// Cek apakah VGA info mengandung dua adapter (integrated + dedicated).
+    /// Contoh: "Intel HD 530 / NVIDIA RTX 3090"
+    /// </summary>
+    private static (string integrated, string dedicated) SplitVgaIntegratedDedicated(string vgaInfo)
+    {
+        if (string.IsNullOrWhiteSpace(vgaInfo)) return (string.Empty, string.Empty);
+
+        // Split by / or , atau " + "
+        var separators = new[] { '/', '+', ';', '\n' };
+        var parts = vgaInfo.Split(separators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2) return (string.Empty, string.Empty);
+
+        string integrated = string.Empty, dedicated = string.Empty;
+        foreach (var p in parts)
+        {
+            bool isIntel = p.Contains("Intel", StringComparison.OrdinalIgnoreCase);
+            bool isAmdIntegrated = p.Contains("AMD Radeon Graphics", StringComparison.OrdinalIgnoreCase)
+                                  || p.Contains("Radeon Graphics", StringComparison.OrdinalIgnoreCase);
+
+            if ((isIntel || isAmdIntegrated) && string.IsNullOrEmpty(integrated))
+            {
+                integrated = p;
+            }
+            else if (string.IsNullOrEmpty(dedicated))
+            {
+                dedicated = p;
+            }
+        }
+
+        return (integrated, dedicated);
+    }
+
+    // ===== NEW: PO Units Lookup =====
+    private async Task LookupPoUnitsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(PoNumber))
+        {
+            _feedback.ShowWarning("Masukkan No PO terlebih dahulu.");
+            return;
+        }
+
+        try
+        {
+            IsLookingUpPo = true;
+            ErpSyncStatus = $"Mencari unit pada PO '{PoNumber.Trim()}' di ERP...";
+            ErpSyncStatusColorBrush = System.Windows.Media.Brushes.Yellow;
+            PoUnits.Clear();
+
+            // Tentukan brand preferen dari manufacturer laptop yang sedang dites
+            string preferredBrand = !string.IsNullOrWhiteSpace(_cachedSystemManufacturer)
+                && _cachedSystemManufacturer.Contains("Lenovo", StringComparison.OrdinalIgnoreCase)
+                ? "Lenovo"
+                : "Lenovo"; // default Lenovo first
+
+            var result = await _erpSyncService.LookupPoUnitsAsync(PoNumber.Trim(), preferredBrand);
+            if (result != null && result.Success && result.Data != null && result.Data.Units.Count > 0)
+            {
+                foreach (var u in result.Data.Units) PoUnits.Add(u);
+                HasPoUnits = true;
+                ErpSyncStatus = $"Ditemukan {PoUnits.Count} unit di PO '{PoNumber}'. Pilih unit lalu hubungkan.";
+                ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
+            }
+            else
+            {
+                HasPoUnits = false;
+                string msg = result?.Message ?? "Tidak ada unit ditemukan";
+                ErpSyncStatus = msg;
+                ErpSyncStatusColorBrush = System.Windows.Media.Brushes.OrangeRed;
+            }
+        }
+        catch (Exception ex)
+        {
+            ErpSyncStatus = $"Error: {ex.Message}";
+            ErpSyncStatusColorBrush = System.Windows.Media.Brushes.Red;
+            _logger.Error("Error looking up PO units", ex);
+        }
+        finally
+        {
+            IsLookingUpPo = false;
+        }
+    }
+
+    // ===== NEW: Refresh Testers =====
+    private async Task RefreshTestersAsync()
+    {
+        try
+        {
+            var result = await _erpSyncService.GetTestersAsync();
+            Testers.Clear();
+            if (result != null && result.Success && result.Data != null)
+            {
+                foreach (var t in result.Data) Testers.Add(t);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Error refreshing testers", ex);
+        }
+    }
+
+    // ===== NEW: Register Tester =====
+    private async Task RegisterTesterAsync()
+    {
+        if (string.IsNullOrWhiteSpace(TesterName))
+        {
+            _feedback.ShowWarning("Isi nama tester terlebih dahulu.");
+            return;
+        }
+
+        try
+        {
+            IsRegisteringTester = true;
+            var result = await _erpSyncService.RegisterTesterAsync(TesterName.Trim());
+            if (result != null && result.Success)
+            {
+                _audio.PlayAction();
+                _feedback.ShowInfo($"Tester '{TesterName.Trim()}' berhasil terdaftar!");
+                await RefreshTestersAsync();
+                // Auto-select newly created tester (or existing matching)
+                var match = Testers.FirstOrDefault(t => t.Name.Equals(TesterName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (match != null) SelectedTester = match;
+                TesterName = string.Empty;
+            }
+            else
+            {
+                _feedback.ShowError($"Gagal register tester: {result?.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Error registering tester", ex);
+            _feedback.ShowError(ex.Message);
+        }
+        finally
+        {
+            IsRegisteringTester = false;
+        }
+    }
+
+    // ===== NEW: Connect to selected unit =====
+    private async Task ConnectAsync()
+    {
+        if (SelectedUnit == null)
+        {
+            _feedback.ShowWarning("Pilih unit dari daftar terlebih dahulu.");
+            return;
+        }
+
+        if (SelectedTester == null)
+        {
+            _feedback.ShowWarning("Pilih tester terlebih dahulu sebelum Hubungkan.");
+            return;
+        }
+
+        await Task.Delay(0);
+        IsConnected = true;
+        _audio.PlayAction();
+        ErpSyncStatus = $"Terhubung ke {SelectedUnit.InternalId} ({SelectedUnit.Brand})\nTester: {SelectedTester.Name}\nSekarang hasil QC akan otomatis terikat ke unit ini.";
+        ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
+        _feedback.ShowInfo($"Berhasil terhubung ke unit {SelectedUnit.InternalId}.\nSekarang hasil QC akan terikat ke unit ini di ERP.");
     }
 
     [DllImport("kernel32.dll")]
