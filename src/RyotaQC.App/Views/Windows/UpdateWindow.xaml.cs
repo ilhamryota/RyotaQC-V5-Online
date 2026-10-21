@@ -34,6 +34,19 @@ public partial class UpdateWindow : Window
         NotesText.Text = string.IsNullOrWhiteSpace(_update.ReleaseNotes)
             ? "Tidak ada catatan rilis."
             : _update.ReleaseNotes;
+
+        // If the release has no downloadable installer asset, tell the user
+        // up-front instead of failing silently after a click.
+        if (string.IsNullOrWhiteSpace(_update.DownloadUrl))
+        {
+            ProgressPanel.Visibility = Visibility.Visible;
+            DownloadProgress.Value = 0;
+            ProgressText.Text = "Paket installer tidak tersedia di rilis ini. Buka halaman rilis untuk mengunduh manual.";
+            UpdateButton.IsEnabled = false;
+            UpdateButton.Content = "Buka Halaman Rilis";
+            UpdateButton.Click -= UpdateButton_Click;
+            UpdateButton.Click += OpenReleasePage_Click;
+        }
     }
 
     private async void UpdateButton_Click(object sender, RoutedEventArgs e)
@@ -55,25 +68,46 @@ public partial class UpdateWindow : Window
             ProgressText.Text = $"Mengunduh update... {pct}%";
         });
 
-        var ok = await _updateService.DownloadAndApplyUpdateAsync(_update, progress);
+        var (ok, error) = await _updateService.DownloadAndApplyUpdateAsync(_update, progress);
 
         if (ok)
         {
             ProgressText.Text = "Update selesai. Aplikasi akan dimulai ulang...";
             UpdateButton.Content = "Menutup...";
 
-            // Give the updater batch script a moment to spin up before we exit.
+            // Give the installer / updater a moment to spin up before we exit.
             await Task.Delay(1500);
 
             Application.Current.Shutdown();
         }
         else
         {
-            ProgressText.Text = "Gagal mengunduh update. Periksa koneksi internet lalu coba lagi.";
+            ProgressText.Text = string.IsNullOrWhiteSpace(error)
+                ? "Gagal mengunduh update. Periksa koneksi internet lalu coba lagi."
+                : $"Gagal mengunduh update: {error}";
             UpdateButton.IsEnabled = true;
             UpdateButton.Content = "Coba Lagi";
             _isUpdating = false;
             _updateStarted = false;
+        }
+    }
+
+    private void OpenReleasePage_Click(object sender, RoutedEventArgs e)
+    {
+        var url = !string.IsNullOrWhiteSpace(_update.ReleaseUrl)
+            ? _update.ReleaseUrl
+            : "https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest";
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Ignore failures opening the browser.
         }
     }
 

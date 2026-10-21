@@ -13,8 +13,9 @@ public interface IAppUpdateService
     Task<AppUpdateInfo?> CheckForUpdateAsync();
 
     /// <summary>
-    /// Download the update package, extract it, and launch an external updater
-    /// that swaps files and restarts the app. Returns true if updater was launched.
+    /// Download the update package (installer EXE preferred, ZIP as fallback),
+    /// then launch it so it can replace the app and restart it.
+    /// Returns (success, errorMessage).
     /// </summary>
-    Task<bool> DownloadAndApplyUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null);
+    Task<(bool Success, string? Error)> DownloadAndApplyUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null);
 }

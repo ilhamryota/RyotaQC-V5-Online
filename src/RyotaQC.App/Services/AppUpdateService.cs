@@ -64,11 +64,17 @@ public sealed class AppUpdateService : IAppUpdateService
                 return null;
             }
 
-            // Find the first asset that looks like an update package (ZIP).
+            // Find the best update asset from the release. We prefer (in order):
+            //   1. An installer EXE (RyotaQC-V5-Setup-*.exe) - the official package
+            //   2. A ZIP bundle (legacy / portable updates)
+            // Other assets (checksums, release notes) are skipped.
             string downloadUrl = string.Empty;
             long downloadSize = 0;
             if (root.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array)
             {
+                string zipUrl = string.Empty;
+                long zipSize = 0;
+
                 foreach (var asset in assetsEl.EnumerateArray())
                 {
                     if (!asset.TryGetProperty("browser_download_url", out var urlEl))
@@ -81,20 +87,42 @@ public sealed class AppUpdateService : IAppUpdateService
                         continue;
                     }
 
-                    // Only accept assets that look like an update package (ZIP).
-                    // Skip checksums, release notes, or other non-archive files
-                    // that may be uploaded before the actual update bundle.
-                    if (!url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    downloadUrl = url;
+                    long assetSize = 0;
                     if (asset.TryGetProperty("size", out var sizeEl) && sizeEl.TryGetInt64(out var sz))
                     {
-                        downloadSize = sz;
+                        assetSize = sz;
                     }
-                    break;
+
+                    var hasName = asset.TryGetProperty("name", out var nameEl)
+                        && nameEl.ValueKind == JsonValueKind.String;
+                    var assetName = hasName ? (nameEl.GetString() ?? string.Empty) : string.Empty;
+                    var fileName = assetName.Length > 0
+                        ? assetName
+                        : Path.GetFileName(url);
+
+                    // 1. Prefer the official installer EXE (highest priority).
+                    if (fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                        && fileName.Contains("Setup", StringComparison.OrdinalIgnoreCase))
+                    {
+                        downloadUrl = url;
+                        downloadSize = assetSize;
+                        break;
+                    }
+
+                    // 2. Remember the first ZIP as a fallback.
+                    if (zipUrl.Length == 0
+                        && fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        zipUrl = url;
+                        zipSize = assetSize;
+                    }
+                }
+
+                // No installer EXE found -> fall back to ZIP if available.
+                if (downloadUrl.Length == 0 && zipUrl.Length > 0)
+                {
+                    downloadUrl = zipUrl;
+                    downloadSize = zipSize;
                 }
             }
 
@@ -131,17 +159,21 @@ public sealed class AppUpdateService : IAppUpdateService
         }
     }
 
-    public async Task<bool> DownloadAndApplyUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null)
+    public async Task<(bool Success, string? Error)> DownloadAndApplyUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(update.DownloadUrl))
         {
-            return false;
+            return (false, "Rilis ini tidak memiliki paket installer yang bisa diunduh.");
         }
+
+        var isInstaller = update.DownloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            || Path.GetFileName(update.DownloadUrl).Contains("Setup", StringComparison.OrdinalIgnoreCase);
 
         var tempDir = Path.Combine(Path.GetTempPath(), "RyotaQC_Update_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
 
-        var zipPath = Path.Combine(tempDir, "update.zip");
+        // Installs use the same download mechanism but a different apply step.
+        var downloadPath = Path.Combine(tempDir, isInstaller ? "RyotaQC-Setup.exe" : "update.zip");
         var extractDir = Path.Combine(tempDir, "extracted");
 
         try
@@ -153,14 +185,14 @@ public sealed class AppUpdateService : IAppUpdateService
             using var response = await Http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
             if (!response.IsSuccessStatusCode)
             {
-                return false;
+                return (false, $"HTTP {(int)response.StatusCode} saat mengunduh {Path.GetFileName(update.DownloadUrl)}");
             }
 
             var totalBytes = response.Content.Headers.ContentLength ?? update.DownloadSizeBytes;
             long receivedBytes = 0;
 
             await using (var contentStream = await response.Content.ReadAsStreamAsync())
-            await using (var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 var buffer = new byte[81920];
                 int read;
@@ -178,8 +210,27 @@ public sealed class AppUpdateService : IAppUpdateService
 
             progress?.Report(100);
 
+            if (isInstaller)
+            {
+                // Launch the official installer silently and exit. Inno Setup
+                // handles closing the running app, installing, and relaunching.
+                // /SILENT shows progress; /NORESTART avoids a reboot prompt;
+                // /CLOSEAPPLICATIONS closes the running RyotaQC instance.
+                var installerPsi = new ProcessStartInfo
+                {
+                    FileName = downloadPath,
+                    Arguments = "/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
+                    UseShellExecute = true,
+                    WorkingDirectory = tempDir
+                };
+                Process.Start(installerPsi);
+                return (true, null);
+            }
+
+            // ---- Legacy ZIP path: extract and swap files via a batch script. ----
+
             // Extract the ZIP.
-            ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
+            ZipFile.ExtractToDirectory(downloadPath, extractDir, overwriteFiles: true);
 
             // If the ZIP contains a single top-level folder, descend into it
             // so the updater copies the actual app files, not a wrapper folder.
@@ -242,14 +293,14 @@ public sealed class AppUpdateService : IAppUpdateService
             Process.Start(psi);
 
             // Request the host to shut down. The updater takes over from here.
-            return true;
+            return (true, null);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Best-effort cleanup on failure.
             try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true); }
             catch { /* ignore */ }
-            return false;
+            return (false, ex.Message);
         }
     }
 }
