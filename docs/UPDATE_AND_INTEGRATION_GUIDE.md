@@ -307,7 +307,9 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | ZIP update + `SHA256SUMS.txt` diverifikasi saat build (`04-build-update-zip.ps1`) | ✅ |
 | `update.log` + `pending-update.json` (jejak update) | ✅ |
 | Verifikasi ukuran + PE + SHA-256 sebelum installer dijalankan | ✅ |
-| **Release v5.0.6** (installer berisi aplikasi v5.0.6) | ⏳ sedang dibangun & di-upload |
+| **Release v5.0.6** (installer berisi aplikasi v5.0.6) | ✅ ter-upload & terverifikasi (333.696.999 byte, 689/689 file staging ikut ter-paket, sampel byte GitHub = lokal) |
+| Rilis lama v5.0.3 / v5.0.4 / v5.0.5 diberi peringatan di catatan rilisnya | ✅ |
+| `SHA256SUMS.txt` dipublikasikan + cocok dengan file aslinya | ✅ |
 
 ---
 
