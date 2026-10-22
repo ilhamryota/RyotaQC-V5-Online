@@ -168,3 +168,8 @@ $RECYCLE.BIN/
 ## Update package ZIP (file hasil build untuk release)
 RyotaQC-V5-Update-v*.zip
 
+
+## Root-level exe/zip artifacts (never commit release binaries)
+/*.exe
+RyotaQC-V5-Update-*.zip
+RyotaQC-V5-Setup-*.exe

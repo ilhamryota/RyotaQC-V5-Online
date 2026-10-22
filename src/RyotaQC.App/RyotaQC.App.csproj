@@ -43,10 +43,10 @@
     <Product>RyotaQC V5</Product>
     <AssemblyTitle>RyotaQC V5</AssemblyTitle>
     <Copyright>Copyright © RyotaQC</Copyright>
-    <Version>5.0.5</Version>
-    <FileVersion>5.0.5.0</FileVersion>
-    <AssemblyVersion>5.0.5.0</AssemblyVersion>
-    <InformationalVersion>5.0.5</InformationalVersion>
+    <Version>5.0.6</Version>
+    <FileVersion>5.0.6.0</FileVersion>
+    <AssemblyVersion>5.0.6.0</AssemblyVersion>
+    <InformationalVersion>5.0.6</InformationalVersion>
     <!-- Prevent the SDK from appending the git commit hash to the
          informational version (Windows "Product version" would otherwise
          read e.g. "5.0.2+d34844f..." which is confusing). -->

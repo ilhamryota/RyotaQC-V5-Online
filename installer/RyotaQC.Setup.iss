@@ -15,14 +15,39 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.5"
+  #define AppVersion "5.0.6"
 #endif
 
 #define AppName "RyotaQC V5"
 #define AppPublisher "RyotaQC"
-#define AppExeName "RyotaQC.App.exe"
-#define AppSourceDir "..\publish"
-#define OutputDir "..\release"
+
+; ---------------------------------------------------------------------------
+; CRITICAL: every one of these must be wrapped in #ifndef.
+;
+; Inno Setup's preprocessor lets a plain `#define` in this script OVERRIDE a
+; /D<name>=<value> passed on the ISCC command line. The build scripts pass
+; /DAppSourceDir=..., so an unguarded #define silently won and the compiler
+; used this script's fallback path instead.
+;
+; v5.0.3/v5.0.4/v5.0.5 all shipped a STALE application inside the installer
+; because of exactly that: the fallback pointed at "..\publish", a leftover
+; local build of v5.0.3, while the pipeline had published the real payload
+; elsewhere. Users "updated" successfully but kept running the old version.
+;
+; The fallback now points at the staged release folder produced by
+; scripts\01-publish-release.ps1 - never at a hand-made publish directory.
+; ---------------------------------------------------------------------------
+#ifndef AppExeName
+  #define AppExeName "RyotaQC.App.exe"
+#endif
+
+#ifndef AppSourceDir
+  #define AppSourceDir "..\release\staging\RyotaQC-V5"
+#endif
+
+#ifndef OutputDir
+  #define OutputDir "..\release"
+#endif
 
 [Setup]
 AppId={{F4FCF1F5-916B-4D6D-9A99-0A94C4A8A6B7}
@@ -300,6 +325,53 @@ begin
     All wizard labels use their default black text on light surface. }
 end;
 
+{ =========================================================================
+  Payload sanity check.
+
+  v5.0.3/v5.0.4/v5.0.5 installers shipped a STALE application inside them
+  (the compiler picked the wrong source folder), so an "update" left users
+  on the old version without any error. That is impossible to notice from
+  the installer's own version number, so this check compares the version of
+  the freshly installed RyotaQC.App.exe against the version this installer
+  was compiled for and complains loudly when they differ.
+  ========================================================================= }
+procedure VerifyInstalledPayloadVersion;
+var
+  InstalledExe, InstalledVersion, ExpectedVersion: String;
+  VersionMS, VersionLS: Cardinal;
+  Major, Minor, Build, Revision: Integer;
+begin
+  InstalledExe := ExpandConstant('{app}\{#AppExeName}');
+  if not FileExists(InstalledExe) then
+  begin
+    MsgBox('Peringatan: {#AppExeName} tidak ditemukan setelah instalasi.' + #13#10 +
+           'Hubungi pengembang dengan informasi ini.', mbError, MB_OK);
+    exit;
+  end;
+
+  { Build "major.minor.build.revision" from the PE version resource.
+    (GetVersionNumbersString does not exist in Inno Setup 6.7.3.) }
+  InstalledVersion := '';
+  if GetVersionNumbers(InstalledExe, VersionMS, VersionLS) then
+  begin
+    Major := VersionMS shr 16;
+    Minor := VersionMS and $FFFF;
+    Build := VersionLS shr 16;
+    Revision := VersionLS and $FFFF;
+    InstalledVersion := Format('%d.%d.%d.%d', [Major, Minor, Build, Revision]);
+  end;
+
+  ExpectedVersion := '{#AppVersion}.0';
+
+  if (InstalledVersion <> '') and (InstalledVersion <> ExpectedVersion) then
+  begin
+    MsgBox('PERINGATAN: paket installer ini berisi aplikasi versi ' + InstalledVersion +
+           ', bukan ' + ExpectedVersion + '.' + #13#10#13#10 +
+           'Update tidak akan mengubah versi aplikasi. Jangan gunakan paket ini - ' +
+           'unduh ulang installer resmi dari halaman Releases.', mbError, MB_OK);
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
@@ -309,6 +381,9 @@ begin
     LastMaxProgress := 0;
     UpdateInstallTimingLabels;
   end;
+
+  if CurStep = ssPostInstall then
+    VerifyInstalledPayloadVersion;
 
   if (CurStep = ssPostInstall) or (CurStep = ssDone) then
     UpdateInstallTimingLabels;

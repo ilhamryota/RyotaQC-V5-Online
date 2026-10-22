@@ -26,7 +26,13 @@ public sealed class FileAppLogger : IAppLogger
         Write("ERROR", message, ex);
     }
 
-    private static string ResolveLogFolder()
+    /// <summary>
+    /// Resolves the folder used for log files: the workspace "logs" folder in a
+    /// development checkout, otherwise %LOCALAPPDATA%\RyotaQC\logs, with the
+    /// temp folder as a last resort. Shared with <see cref="AppUpdateService"/>
+    /// so the update trace lands next to the application log.
+    /// </summary>
+    internal static string ResolveLogFolder()
     {
         var candidates = new[]
         {
