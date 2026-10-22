@@ -1,4 +1,4 @@
-# RyotaQC V5.0.7 - Panduan Update & Integrasi ERP
+# RyotaQC V5.0.8 - Panduan Update & Integrasi ERP
 
 Dokumen ini menjelaskan:
 1. Cara update aplikasi (auto-update & manual)
@@ -11,57 +11,73 @@ Dokumen ini menjelaskan:
 > (penjelasan di bagian 2). Karena itu auto-update dari versi-versi tersebut
 > **tidak akan pernah berhasil** — paket terpasang, tapi aplikasi tetap versi lama.
 >
-> **Lakukan update manual sekali** ke v5.0.7 (bagian 1.B). Setelah berada di
-> v5.0.6 atau v5.0.7, auto-update ke versi berikutnya berjalan normal.
+> **Lakukan update manual sekali** ke v5.0.8 (bagian 1.B). Setelah berada di
+> v5.0.6 atau lebih baru, auto-update ke versi berikutnya berjalan normal.
 
 ---
 
 ## 1. CARA UPDATE APLIKASI
 
-### A. Auto-Update (dari dalam aplikasi)
+### A. Auto-Update (dari dalam aplikasi — alur baru sejak v5.0.8)
 
 Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 
-1. Dialog **"Update Wajib Tersedia!"** muncul
-2. Klik tombol **"Update Sekarang"** (atau "Coba Lagi" jika gagal)
-3. App mengunduh paket installer (~334 MB) — ukuran file dan **SHA-256**-nya
-   dicocokkan dengan `SHA256SUMS.txt` di rilis tersebut
-4. Setelah unduh selesai + lolos verifikasi, app menutup otomatis
-5. Installer berjalan (silent, minta UAC), install, lalu app restart
-6. Setelah app terbuka, **cek nomor versi** di halaman utama
+1. Dialog **"Update Tersedia!"** muncul: perbandingan **Versi Sekarang** vs
+   **Versi Terbaru**, daftar **Detail Perubahan**, persentase + progress bar.
+2. Klik **"Update Sekarang"** → app mengunduh installer (~318 MB) ke
+   `%LOCALAPPDATA%\RyotaQC\updates\` sambil menampilkan progress. Setelah unduh,
+   file diverifikasi: ukuran, header `MZ` (PE), dan **SHA-256** terhadap
+   `SHA256SUMS.txt` di rilis tersebut.
+3. Setelah unduhan selesai + lolos verifikasi, muncul pertanyaan:
+   **"Download update selesai. Ingin update sekarang atau nanti?"**
+   - **Install Sekarang** → app menutup otomatis, installer berjalan (silent,
+     meminta UAC), lalu app terbuka kembali dan menampilkan **"Update berhasil"**
+     beserta pertanyaan **"Restart aplikasi sekarang? Ya/Tidak"**.
+     - **Ya** → app ditutup lalu dibuka otomatis.
+     - **Tidak** → lanjut memakai app; saat ditutup dan dibuka lagi, app sudah
+       versi terbaru.
+   - **Nanti** → app **tetap berjalan di versi sekarang dan semua fitur bisa
+     dipakai**. Tawaran yang sama muncul lagi setiap app dibuka.
+4. Hasil instalasi **diverifikasi dari file yang benar-benar terpasang**:
+   helper membaca `FileVersion` dari `RyotaQC.App.exe` di folder instalasi dan
+   membandingkannya dengan versi target.
+   - Cocok → pesan sukses + pilihan restart.
+   - Tidak cocok / installer keluar dengan kode error → pesan
+     **"Update Gagal Dipasang"** yang menyebut kode keluar installer dan path
+     log. File installer tetap tersimpan di `%LOCALAPPDATA%\RyotaQC\updates\`,
+     jadi bisa dicoba lagi tanpa mengunduh ulang.
 
-**Estimasi waktu unduh (334 MB):**
+**Estimasi waktu unduh (~318 MB):**
 | Koneksi | Perkiraan waktu |
 |---------|-----------------|
 | 10 Mbps | ~4.5 menit |
 | 20 Mbps | ~2.2 menit |
 | 50 Mbps | ~53 detik |
 
-> Jika setelah restart nomor versi **tidak berubah**, kirimkan file
-> `%LOCALAPPDATA%\RyotaQC\logs\update.log` ke pengembang. Sejak v5.0.6 setiap
-> langkah update dicatat di situ (termasuk hasil verifikasi checksum dan
-> apakah versi benar-benar berubah setelah restart).
+> Semua langkah update dicatat di `%LOCALAPPDATA%\RyotaQC\logs\update.log`;
+> installer menulis log sendiri di `%LOCALAPPDATA%\RyotaQC\updates\installer.log`.
+> Kirimkan kedua file itu ke pengembang kalau update gagal.
 >
-> Sejak **v5.0.7** hal ini juga tampil di layar: kalau update sebelumnya ternyata
-> tidak mengubah versi terpasang, saat app dibuka berikutnya muncul peringatan
-> **"Update Tidak Terpasang"** yang menyebut versi sekarang + lokasi file log.
-> Jadi kegagalan update tidak lagi lewat begitu saja.
+> Sejak **v5.0.8** installer **tidak lagi dijalankan dari folder `%TEMP%`**
+> (yang sering diblokir Defender/antivirus sehingga installer tidak pernah
+> benar-benar jalan) dan hasil instalasi **selalu dicek ulang**, jadi kegagalan
+> update tidak lagi lewat begitu saja.
 
 ### B. Update Manual (WAJIB untuk semua user di bawah v5.0.6)
 
 1. Buka https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh `RyotaQC-V5-Setup-x64-v5.0.7.exe` (~334 MB) **dan** `SHA256SUMS.txt`
+2. Unduh `RyotaQC-V5-Setup-x64-v5.0.8.exe` (~318 MB) **dan** `SHA256SUMS.txt`
 3. **Verifikasi unduhan** (penting — unduhan terpotong adalah penyebab paling
    umum pesan "This app can't run on your PC"):
 
    ```powershell
-   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.7.exe -Algorithm SHA256
+   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.8.exe -Algorithm SHA256
    # bandingkan hasilnya dengan baris di SHA256SUMS.txt
    ```
 
 4. Tutup aplikasi RyotaQC yang sedang berjalan
 5. Jalankan installer (klik kanan → **Run as administrator**), tunggu selesai
-6. Buka app → nomor versi harus **v5.0.7**
+6. Buka app → nomor versi harus **v5.0.8**
 
 ---
 
@@ -195,22 +211,33 @@ langsung, pesan error lebih detail (HTTP code / ukuran yang diterima).
 3. **Gudang** → Receive PO → unit otomatis masuk `QC_QUEUE`
 4. Buka **Menu Quality Control** → unit muncul di kolom **ANTREAN**
 
-**STEP 2 — Aplikasi RyotaQC V5.0.5**
+**STEP 2 — Aplikasi RyotaQC V5.0.8**
 
-Saat menu **Quality Control** dibuka, muncul popup **ESTERAONE ERP SYNC** (2 kolom):
+Setiap kali menu **Quality Control** dibuka, muncul popup **Hubungkan ke ERP**
+dengan dua mode (pilih salah satu, hanya satu panel yang tampil):
 
-1. **Kolom 1 — Via No PO:**
+1. **Via No PO:**
    - Isi **No PO** (misal `PO-0003`) → klik **Cari**
-   - Dropdown **PILIH KODE UNIT EST** muncul (brand Lenovo diprioritaskan atas)
-   - Pilih unit yang sesuai laptop yang sedang di-QC → klik **Hubungkan Unit Ini**
-2. **Kolom 2 — Via Kode Unit:**
-   - Isi **Kode Unit** (misal `EST-2610-0003-01` / serial / pra-QC code) → klik **Cari**
-   - Detail unit muncul (pra-QC code, serial, produk, brand, PO, status kanban)
-   - Klik **Hubungkan Kode Unit**
-3. **Tester:** pilih dari dropdown, atau isi nama baru + klik **Tester+**
-4. Bisa juga klik **Lanjut Tanpa ERP** (QC tetap jalan, hasil disimpan lokal)
+   - **PILIH KODE UNIT** (dropdown ringkas) terisi unit milik PO tersebut
+     (brand Lenovo diprioritaskan)
+   - Pilih unit yang sesuai laptop yang sedang di-QC → klik **Hubungkan ke ERP**
+2. **Via Kode Unit** (tanpa No PO):
+   - Pilih tab **Via Kode Unit** → isi kode unit (misal `EST-2610-0003-01` /
+     serial / pra-QC code) → klik **Cari**
+   - Detail unit tampil (pra-QC code, serial, produk, brand, PO, status kanban)
+   - Klik **Hubungkan ke ERP**
+3. **Tester:** pilih dari dropdown, atau isi nama baru + klik **+**
+4. Status di bawah tombol berjalan sampai **Terhubung**, lalu popup menutup dan
+   menu QC bisa dipakai.
+5. Klik **Tanpa ERP** kalau tidak ingin menghubungkan unit (QC tetap jalan,
+   hasil disimpan lokal).
 
-Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman QC menampilkan unit terikat + tombol **Kirim ke ERP**.
+Setelah terhubung, di atas halaman QC tampil **badge koneksi**:
+- mode No PO: `PO PO-0003 · EST-2610-0003-04`
+- mode kode unit: `KODE UNIT EST-2610-0003-04`
+
+Panel **ESTERAONE ERP — UNIT TERHUBUNG** di halaman QC tetap menampilkan unit
+terikat + tombol **Kirim ke ERP**.
 
 5. Jalankan semua test QC di panel kanan. Beberapa test memakai popup khusus:
    - **Storage Health** → popup input angka → popup verdict **OK / "-" Optional / X Fail** (70–100% = PASS, <70% = FAIL)
@@ -318,6 +345,12 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | Badge versi menu utama dibaca live dari assembly yang berjalan | ✅ selalu menampilkan versi yang benar-benar terpasang |
 | **v5.0.7**: peringatan "Update Tidak Terpasang" jika versi tidak berubah setelah update | ✅ ditambahkan (sebelumnya gagal tanpa jejak di layar) |
 | **Release v5.0.7** (sama dengan v5.0.6 + peringatan update gagal) | ✅ ter-upload, `latest` — Setup 333.738.257 byte (SHA-256 `28830EE2…37ACD`), ZIP 384.044.888 byte (726 entry, payload 5.0.7.0), ukuran aset GitHub = lokal |
+| **v5.0.8**: alur unduh → "install sekarang / nanti" → verifikasi versi terpasang → "restart? Ya/Tidak" | ✅ diimplementasikan — installer diunduh ke `%LOCALAPPDATA%\RyotaQC\updates\`, hasil dibaca dari FileVersion `RyotaQC.App.exe` yang terpasang |
+| **v5.0.8**: deteksi kegagalan update tidak lagi senyap | ✅ diuji: installer keluar kode 0 tetapi versi tidak berubah → `success=False` + pesan "Update Gagal Dipasang" (kode keluar + path log) |
+| **v5.0.8**: popup "Hubungkan ke ERP" setiap masuk menu Quality Control | ✅ Via No PO / Via Kode Unit (satu mode), status sampai Terhubung, tombol "Tanpa ERP" tetap ada |
+| **v5.0.8**: badge koneksi di layar QC (`PO … · EST-…` / `KODE UNIT EST-…`) | ✅ |
+| **v5.0.8**: dropdown kode unit ringkas (tidak lagi memakan ruang popup) | ✅ tinggi 36 px, daftar maks 170 px |
+| **Release v5.0.8** | ✅ ter-upload, `latest` — Setup 333.764.962 byte (SHA-256 `A0A8B5C0…B6D2D3`), ZIP 384.061.880 byte (726 entry, payload 5.0.8.0), `SHA256SUMS.txt` identik lokal vs GitHub |
 
 ---
 
@@ -328,7 +361,7 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | 1 | Patch `warehouse.controller.ts` (auto-fill bank supplier) | Perlu rebuild BE |
 | 2 | Restart ERP BE | `sudo -u admin /usr/bin/pm2 restart esteraone-green-be` |
 | 3 | Test dari app v5.0.6 terinstall (manual update dulu untuk user < v5.0.6) | Perlu install di laptop teknisi |
-| 4 | **Uji alur auto-update end-to-end: v5.0.6 → v5.0.7** (buka app → "Update Sekarang" → setujui UAC → cek badge menu utama = v5.0.7) | Butuh laptop teknisi yang sudah v5.0.6 |
+| 4 | **Uji alur auto-update end-to-end di laptop teknisi: v5.0.7 → v5.0.8** (buka app → "Update Sekarang" → unduh 100% → "Install Sekarang" → setujui UAC → app terbuka lagi → "Update berhasil" → badge menu utama = v5.0.8) | Butuh laptop teknisi yang sudah v5.0.7 (mesin dev tidak elevated) |
 
 ### Cara Restart Service di VPS
 
@@ -354,7 +387,8 @@ curl -s http://127.0.0.1:8005/api/v1/switcher/target-db
 ## 6. REFERENSI CEPAT
 
 **Repositori:** https://github.com/ilhamryota/RyotaQC-V5-Online
-**Release terbaru (v5.0.7):** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.7
+**Release terbaru (v5.0.8):** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.8
+**Release v5.0.7:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.7
 **Release v5.0.6:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.6
 **Release lama (jangan dipakai untuk install baru):** v5.0.3 / v5.0.4 / v5.0.5
 **Web ERP DEV:** https://dev.esteraone.com/dashboard
