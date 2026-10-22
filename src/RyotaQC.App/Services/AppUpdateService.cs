@@ -245,14 +245,21 @@ public sealed class AppUpdateService : IAppUpdateService
                 // installer can replace files and relaunch the app afterwards.
                 //
                 // Flags:
-                //   /SILENT              show progress, no wizard pages
-                //   /NORESTART           never force a reboot
-                //   /CLOSEAPPLICATIONS   close the running RyotaQC instance
-                //   /RESTARTAPPLICATIONS relaunch the app when finished
+                //   /SILENT    show progress, no wizard pages
+                //   /NORESTART never force a reboot
+                //
+                // NOTE: we deliberately do NOT pass /CLOSEAPPLICATIONS or
+                // /RESTARTAPPLICATIONS. Inno Setup's RestartApplications
+                // relaunches every app it closed - racing the installer's
+                // own [Run] entry and sometimes bringing back the OLD
+                // executable (the app appeared to stay on the previous
+                // version after updating). The app exits by itself right
+                // after this call, and the installer relaunches the NEW
+                // version via its [Run] entry.
                 var installerPsi = new ProcessStartInfo
                 {
                     FileName = downloadPath,
-                    Arguments = "/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
+                    Arguments = "/SILENT /NORESTART",
                     UseShellExecute = true,
                     WorkingDirectory = tempDir,
                     Verb = "runas"

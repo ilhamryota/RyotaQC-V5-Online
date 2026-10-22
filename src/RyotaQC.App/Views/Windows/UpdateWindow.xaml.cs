@@ -75,10 +75,18 @@ public partial class UpdateWindow : Window
             ProgressText.Text = "Update selesai. Aplikasi akan dimulai ulang...";
             UpdateButton.Content = "Menutup...";
 
-            // Give the installer / updater a moment to spin up before we exit.
-            await Task.Delay(1500);
+            // Give the installer a moment to start (UAC-approved) before we
+            // exit, so it is not fighting a live process while it replaces
+            // RyotaQC.App.exe. The installer relaunches the NEW version via
+            // its [Run] entry once copying is complete.
+            await Task.Delay(2000);
 
+            // Hard exit: guarantees the process (and its file handles on
+            // RyotaQC.App.exe / .dll) are released so the installer can
+            // overwrite them. Application.Shutdown alone can leave the
+            // process alive briefly if a background thread is running.
             Application.Current.Shutdown();
+            Environment.Exit(0);
         }
         else
         {

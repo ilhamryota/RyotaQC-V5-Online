@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.4"
+  #define AppVersion "5.0.5"
 #endif
 
 #define AppName "RyotaQC V5"
@@ -64,8 +64,19 @@ UninstallDisplayName={#AppName}
 DiskSpanning=no
 
 ShowLanguageDialog=no
+; IMPORTANT (auto-update reliability):
+;   CloseApplications=yes lets the installer detect and close a running
+;   RyotaQC instance so files can be replaced.
+;
+;   RestartApplications is intentionally DISABLED. With it enabled, Inno
+;   Setup relaunches every application it closed - racing against the
+;   [Run] entry below and sometimes bringing back the OLD executable
+;   before the new files are fully in place (the app appeared to stay on
+;   the previous version after an update). The single, deterministic
+;   relaunch is now done by the [Run] entry below.
 CloseApplications=yes
-RestartApplications=yes
+RestartApplications=no
+CloseApplicationsFilter=*.exe,*.dll
 VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoProductName={#AppName}
@@ -88,10 +99,16 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
 
 [Run]
-; Launch the app after install. NOTE: no 'skipifsilent' flag - the app's
-; self-updater runs the installer with /SILENT and relies on this entry to
-; relaunch the new version automatically. 'runasoriginaluser' keeps the app
-; running as the normal user even though Setup itself was elevated.
+; Launch the (new) app after install. NOTE: no 'skipifsilent' flag - the
+; app's self-updater runs the installer with /SILENT and relies on this
+; entry to relaunch the NEW version automatically. 'runasoriginaluser'
+; keeps the app running as the normal user even though Setup itself was
+; elevated.
+;
+; 'nowait' so the installer exits immediately; 'postinstall' so it runs
+; after all files are copied. This is the ONLY relaunch path
+; (RestartApplications is disabled above) so the version you see is
+; always the freshly installed one.
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall runasoriginaluser
 
 [CustomMessages]
@@ -118,6 +135,45 @@ var
 
 function GetTickCount: LongWord;
 external 'GetTickCount@kernel32.dll stdcall';
+
+{ =========================================================================
+  Auto-update hardening.
+
+  Old app versions (e.g. v5.0.3) launch this installer with the legacy
+  "/RESTARTAPPLICATIONS" flag. That flag makes Inno Setup relaunch every
+  application it closed - racing the installer's own [Run] entry and
+  sometimes bringing back the OLD executable, so the app looked like it
+  never updated.
+
+  To make the update deterministic we force-terminate any running
+  RyotaQC.App.exe BEFORE Setup's close-applications scan runs
+  (PrepareToInstall). With no live instance left to track, Inno's
+  RestartApplications has nothing to relaunch, and the [Run] entry is the
+  single source of truth for starting the NEW version.
+  ========================================================================= }
+
+function TerminateRunningApp: Boolean;
+var
+  ResultCode: Integer;
+begin
+  { /F force, /IM by image name, /T kills the whole process tree.
+    taskkill returns non-zero when no matching process exists - that is
+    not an error for us. }
+  Exec(ExpandConstant('{sys}\taskkill.exe'),
+       '/F /T /IM RyotaQC.App.exe', '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := True;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  { Kill any stale RyotaQC instance so files can be replaced cleanly and
+    Inno has nothing to "restart" from a previous version. }
+  TerminateRunningApp;
+  { Give Windows a moment to release file handles on the exe/dlls. }
+  Sleep(1000);
+  Result := '';
+end;
 
 function FormatDuration(SecondsValue: Integer): string;
 var
