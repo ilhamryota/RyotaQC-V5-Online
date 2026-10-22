@@ -317,7 +317,7 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | `SHA256SUMS.txt` dipublikasikan + cocok dengan file aslinya | ✅ |
 | Badge versi menu utama dibaca live dari assembly yang berjalan | ✅ selalu menampilkan versi yang benar-benar terpasang |
 | **v5.0.7**: peringatan "Update Tidak Terpasang" jika versi tidak berubah setelah update | ✅ ditambahkan (sebelumnya gagal tanpa jejak di layar) |
-| **Release v5.0.7** (postur sama dengan v5.0.6 + peringatan update gagal) | ⏳ sedang dibangun & di-upload |
+| **Release v5.0.7** (sama dengan v5.0.6 + peringatan update gagal) | ✅ ter-upload, `latest` — Setup 333.738.257 byte (SHA-256 `28830EE2…37ACD`), ZIP 384.044.888 byte (726 entry, payload 5.0.7.0), ukuran aset GitHub = lokal |
 
 ---
 
