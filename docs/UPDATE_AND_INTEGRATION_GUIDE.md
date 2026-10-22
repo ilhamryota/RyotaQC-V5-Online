@@ -1,4 +1,4 @@
-# RyotaQC V5.0.3 - Panduan Update & Integrasi ERP
+# RyotaQC V5.0.4 - Panduan Update & Integrasi ERP
 
 Dokumen ini menjelaskan:
 1. Cara update aplikasi (auto-update & manual)
@@ -29,7 +29,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 ### B. Update Manual (jika auto-update gagal)
 
 1. Buka https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh `RyotaQC-V5-Setup-x64-v5.0.3.exe` (334 MB)
+2. Unduh `RyotaQC-V5-Setup-x64-v5.0.4.exe` (334 MB)
 3. Tutup aplikasi RyotaQC yang sedang berjalan
 4. Jalankan installer **as Administrator**
 5. Ikuti wizard sampai selesai
@@ -45,7 +45,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 - Timeout 20 detik terlalu pendek untuk file besar
 
 **Solusi:**
-1. Pastikan release v5.0.3 punya asset `.zip` (sudah disiapkan: `RyotaQC-V5-Update-v5.0.3.zip`)
+1. Pastikan release v5.0.4 punya asset `.zip` (sudah disiapkan: `RyotaQC-V5-Update-v5.0.4.zip`)
 2. Jika masih gagal, cek:
    - **Firewall/Proxy** — apakah `objects.githubusercontent.com` diblokir?
    - **Antivirus** — apakah memblokir proses updater?
@@ -104,19 +104,29 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 3. **Gudang** → Receive PO → unit otomatis masuk `QC_QUEUE`
 4. Buka **Menu Quality Control** → unit muncul di kolom **ANTREAN**
 
-**STEP 2 — Aplikasi RyotaQC V5.0.3**
+**STEP 2 — Aplikasi RyotaQC V5.0.4**
 
-1. Buka app → menu **Quality Control**
-2. Panel **ESTERAONE ERP SYNC**:
+Saat menu **Quality Control** dibuka, muncul popup **ESTERAONE ERP SYNC** (2 kolom):
+
+1. **Kolom 1 — Via No PO:**
    - Isi **No PO** (misal `PO-0003`) → klik **Cari**
-   - Dropdown **PILIH KODE UNIT (EST)** muncul (brand Lenovo diprioritaskan atas)
-   - Pilih unit yang sesuai laptop yang sedang di-QC
-3. **Tester**:
-   - Pilih dari dropdown (jika sudah terdaftar), ATAU
-   - Isi nama di kotak kanan → klik **Tester+** untuk daftar baru
-4. Klik **Hubungkan** → app terikat ke unit (status hijau)
-5. Jalankan semua test QC di panel kanan:
-   - LCD Test, Storage Health, Battery Health, Keyboard, Audio, Benchmark, Camera, Touchscreen, dll
+   - Dropdown **PILIH KODE UNIT EST** muncul (brand Lenovo diprioritaskan atas)
+   - Pilih unit yang sesuai laptop yang sedang di-QC → klik **Hubungkan Unit Ini**
+2. **Kolom 2 — Via Kode Unit:**
+   - Isi **Kode Unit** (misal `EST-2610-0003-01` / serial / pra-QC code) → klik **Cari**
+   - Detail unit muncul (pra-QC code, serial, produk, brand, PO, status kanban)
+   - Klik **Hubungkan Kode Unit**
+3. **Tester:** pilih dari dropdown, atau isi nama baru + klik **Tester+**
+4. Bisa juga klik **Lanjut Tanpa ERP** (QC tetap jalan, hasil disimpan lokal)
+
+Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman QC menampilkan unit terikat + tombol **Kirim ke ERP**.
+
+5. Jalankan semua test QC di panel kanan. Beberapa test memakai popup khusus:
+   - **Storage Health** → popup input angka → popup verdict **OK / "-" Optional / X Fail** (70–100% = PASS, <70% = FAIL)
+   - **Battery Health** → popup **Battery Health 1 (wajib)** + **Battery Health 2 (opsional, hanya jika 2 battery)**, auto-isi dari health terbaca → popup verdict. Hasil tampil mis. `100% OK` atau `100% / 70% OK`
+   - **Battery Report** → popup hasil + popup durasi (jam & menit) → mengisi **Estimasi Batt.lifetime** di ERP
+   - **Fail (X)** → diminta catatan alasan, disimpan ke checklist QC test tersebut dengan status FAIL
+   - **Touchscreen / Backlight / Fingerprint** tanpa hasil → dikirim sebagai `"-"` (opsional)
 6. Pilih **STATUS QC**:
    | Pilihan | Kanban Tujuan | Keterangan |
    |---------|---------------|------------|
@@ -124,28 +134,58 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
    | `SERVICE` | SERVIS | Perlu perbaikan |
    | `RETUR` | RETUR | Masuk manajemen retur |
    | `RUNNING_TEST` | TES RUNNING | Masih diuji |
-7. Klik **Hasil QC** → popup → klik **Kirim ke ERP**
+7. Klik **Kirim ke ERP**
 
 **STEP 3 — Verifikasi di Web ERP**
 
 - Refresh **Menu Quality Control**
 - Kartu unit sudah pindah kolom sesuai STATUS QC
-- Klik kartu → spec hardware, battery health, hasil test, tester terisi otomatis
+- Klik kartu → tab **Checklist QC** terisi lengkap: spec hardware, tiap test (PASS/FAIL/ISSUE/"-"),
+  numeric (hddSsdHealth, batteryHealth, batteryHealth2), Estimasi Batt.lifetime, dan catatan fail per test
 
 ### Data yang Dikirim ke ERP
 
 **Spec hardware (otomatis dari WMI):**
 - Processor (CPU)
 - RAM
-- Storage HDD (terpisah, jika ada)
-- Storage SSD (terpisah)
+- Storage HDD (terpisah, hanya HDD/SATA/M.2 SATA)
+- Storage SSD (terpisah, NVMe/M.2 NVMe/SSD)
 - VGA — support dual: `Intel HD 530 + RTX 3090`
-- Display — resolusi + refresh rate, contoh `1920 x 1080 @60Hz FHD` (+ label Touchscreen jika touch)
+- Display — resolusi + refresh rate (+ label Touchscreen jika touch)
 
-**Hasil test per parameter:**
+**Checklist test (qcData.tests) — 14 key sesuai TEST_LIST ERP:**
+
+| Test App | Key ERP | Wajib |
+|----------|---------|-------|
+| LCD Test | `lcdTest` | ✅ |
+| Storage Health | `storageTest` | ✅ |
+| Battery Health | `batteryTest` | ✅ |
+| Keyboard | `keyboard` | ✅ |
+| Audio | `audioSpeaker` | ✅ |
+| Benchmark | `stressTest` | ✅ |
+| Camera | `camera` | ✅ |
+| Port | `port` | ✅ |
+| Touchpad | `touchpad` | ✅ |
+| Wifi | `wifiTest` | ✅ |
+| Mic | `microphone` | ✅ |
+| Touchscreen | `touchscreen` | opsional (`"-"` jika tidak ada) |
+| Backlight | `backlight` | opsional (`"-"` jika tidak ada) |
+| Fingerprint | `fingerprint` | opsional (selalu `"-"`) |
+
+**Numeric tests (qcData.numericTests):**
+
+| Nilai | Key ERP | Sumber |
+|-------|---------|--------|
+| Health storage | `hddSsdHealth` | input Storage Health |
+| Health battery 1 | `batteryHealth` | input Battery Health 1 |
+| Health battery 2 | `batteryHealth2` | input Battery Health 2 (jika ada) |
+| Estimasi battery | `batteryLifetime` | durasi Battery Report (menit) |
+
+**Status per test:**
 - `PASS` (hijau) → OK
-- `SKIP` (minus) → -
-- `FAIL` (merah) → Fail + catatan
+- `"-"` (minus) → opsional / tidak diuji
+- `FAIL` (merah) → Fail + catatan alasan
+- `ISSUE` → perlu perhatian
 
 **Auto-kalkulasi:**
 - `hppFinal` = hppInitial + repairCost
@@ -153,7 +193,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 
 ---
 
-## 4. STATUS VERIFIKASI (21 Okt 2026)
+## 4. STATUS VERIFIKASI (22 Okt 2026)
 
 ### Sudah Teruji LIVE di DEV
 
@@ -161,23 +201,18 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 |------|-------|
 | QC Hub restart | ✅ uptime reset |
 | Target DB = DEV | ✅ port 5439, esteraone_dev |
-| PO-0003 units lookup | ✅ return 4 unit Lenovo X395 |
+| PO-0003 units lookup | ✅ return unit Lenovo X395 |
 | Register tester | ✅ tersimpan di testers.json |
 | Submit LULUS → SELESAI | ✅ qcStatusId benar |
 | Submit SERVICE → SERVIS | ✅ |
 | Submit RETUR → RETUR | ✅ |
-| Submit RUNNING_TEST → TES RUNNING | ✅ |
-| Spec dual storage/VGA | ✅ "Intel i5-8265U / 8GB DDR4 / 256GB NVMe" |
+| Full 14 test key ke qcData.tests | ✅ semua key tersimpan benar |
+| Numeric hddSsdHealth/batteryHealth/batteryHealth2/batteryLifetime | ✅ |
+| overallStatus FAIL saat Mic FAIL → Kanban SERVIS | ✅ |
+| UTF-8 (em-dash, titik tengah) di spec & notes | ✅ tidak rusak |
+| Spec dual storage/VGA | ✅ "AMD Ryzen 7 / 16 GB / SSD M.2 NVMe — 238 GB" |
 | HPP auto-calc | ✅ 4.5M → sellPrice 5.85M |
-
-### Data Test di DEV DB
-
-| Unit | Status | Kanban |
-|------|--------|--------|
-| EST-2610-0003-02 | READY | SELESAI |
-| EST-2610-0003-03 | QC_PROCESS | TES RUNNING |
-| EST-2610-0003-04 | SERVICE | SERVIS |
-| EST-2610-0003-05 | RETUR | RETUR |
+| Release v5.0.4 + asset Setup EXE & Update ZIP | ✅ ter-upload, latest |
 
 ---
 
@@ -187,7 +222,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 |---|------|----------|
 | 1 | Patch `warehouse.controller.ts` (auto-fill bank supplier) | Perlu rebuild BE |
 | 2 | Restart ERP BE | `sudo -u admin /usr/bin/pm2 restart esteraone-green-be` |
-| 3 | Test dari app v5.0.3 terinstall | Perlu install di laptop |
+| 3 | Test dari app v5.0.4 terinstall | Perlu install di laptop teknisi |
 
 ### Cara Restart Service di VPS
 
@@ -213,7 +248,7 @@ curl -s http://127.0.0.1:8005/api/v1/switcher/target-db
 ## 6. REFERENSI CEPAT
 
 **Repositori:** https://github.com/ilhamryota/RyotaQC-V5-Online
-**Release v5.0.3:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.3
+**Release v5.0.4:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.4
 **Web ERP DEV:** https://dev.esteraone.com/dashboard
 **QC Hub:** http://109.123.239.163:8005
 
