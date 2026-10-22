@@ -44,6 +44,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     private DateTime? _driverInstallDate;
     private string _cachedSystemModel = string.Empty;
     private string _cachedSystemManufacturer = string.Empty;
+    private string _lastAutoFilledModel = string.Empty;
 
     private int? _batteryHealthPercent;
     private int? _batteryHealth2Percent;
@@ -128,6 +129,19 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     [ObservableProperty]
     private TesterInfo? selectedTester;
 
+    // ===== Mandatory manual QC inputs (ERP Kanban) =====
+    /// <summary>Manual physical score in percent (0-100), e.g. "94" or "94%".</summary>
+    [ObservableProperty]
+    private string physicalScore = string.Empty;
+
+    /// <summary>Laptop type/model. Auto-filled from System Information after ERP connect, editable.</summary>
+    [ObservableProperty]
+    private string laptopModel = string.Empty;
+
+    /// <summary>Unit completeness / accessories (charger, box, etc.).</summary>
+    [ObservableProperty]
+    private string completeness = string.Empty;
+
     [ObservableProperty]
     private string qcStatus = "LULUS";
 
@@ -182,6 +196,8 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             SelectedTester = new TesterInfo { Id = connection.TesterName, Name = connection.TesterName };
         }
 
+        TesterName = SelectedTester?.Name ?? connection.TesterName ?? string.Empty;
+
         ConnectionMode = connection.Mode;
         ErpBadgeText = connection.BadgeText;
         IsConnected = connection.Connected && connection.Unit is not null;
@@ -208,9 +224,49 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         ErpUnitDetails = $"Unit: {connection.Unit.ProductName} ({connection.Unit.Brand})\n" +
                          $"Kode: {connection.Unit.InternalId} | Status: {connection.Unit.Status}";
         HasErpUnitDetails = true;
-        ErpSyncStatus = $"Terhubung ke unit ERP {connection.Unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini.";
+        ErpSyncStatus = string.IsNullOrWhiteSpace(TesterName)
+            ? $"Terhubung ke unit ERP {connection.Unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini."
+            : $"Terhubung ke unit ERP {connection.Unit.InternalId}. Tester: {TesterName}. Hasil QC akan otomatis terikat ke kanban unit ini.";
         ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
         ApplyBadgeStyle(connected: true);
+
+        // "Tipe/Model" wajib: tarik otomatis dari System Information setelah
+        // terhubung ke ERP, lalu user tetap bisa edit/hapus dan ketik ulang.
+        _ = AutoFillLaptopModelAsync();
+    }
+
+    private async Task AutoFillLaptopModelAsync()
+    {
+        try
+        {
+            var info = await _systemInfoService.GetSystemInfoAsync();
+            var model = (info.SystemModel ?? string.Empty).Trim();
+
+            if (string.IsNullOrWhiteSpace(model) ||
+                model.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+            {
+                model = (_cachedSystemModel ?? string.Empty).Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(model) &&
+                !model.Equals("N/A", StringComparison.OrdinalIgnoreCase))
+            {
+                // Do not overwrite a value the technician typed manually. Only
+                // fill an empty box or replace our own previous auto-fill.
+                if (string.IsNullOrWhiteSpace(LaptopModel) ||
+                    string.Equals(LaptopModel, _lastAutoFilledModel, StringComparison.OrdinalIgnoreCase))
+                {
+                    LaptopModel = model;
+                    _lastAutoFilledModel = model;
+                }
+
+                EnsureNotesTemplate();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Gagal membaca model laptop dari System Information.", ex);
+        }
     }
 
     /// <summary>
@@ -246,6 +302,16 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
 
     partial void OnIsSyncingErpChanged(bool value) => SyncToErpCommand.NotifyCanExecuteChanged();
+
+    partial void OnPhysicalScoreChanged(string value) => UpdateChecklistSummary();
+
+    partial void OnLaptopModelChanged(string value)
+    {
+        UpdateChecklistSummary();
+        EnsureNotesTemplate();
+    }
+
+    partial void OnCompletenessChanged(string value) => UpdateChecklistSummary();
 
     partial void OnSelectedUnitChanged(PoUnitItem? value)
     {
@@ -461,6 +527,20 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
             UpdateStatusText(item);
             UpdateChecklistSummary();
+            return;
+        }
+
+        // Any result mutation must immediately refresh the automatic notes and
+        // the Benchmark badge (this is what made the Benchmark Status popup
+        // look like it was not saved before).
+        if (e.PropertyName is nameof(QcChecklistItem.HasResult)
+            or nameof(QcChecklistItem.ResultLabel)
+            or nameof(QcChecklistItem.ResultStatus)
+            or nameof(QcChecklistItem.ResultNote)
+            or nameof(QcChecklistItem.ResultColor))
+        {
+            UpdateChecklistSummary();
+            OnPropertyChanged(nameof(BenchmarkChecklistItem));
         }
     }
 
@@ -651,6 +731,24 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                     break;
 
                 case QcChecklistKind.TouchscreenTest:
+                    // Touchscreen is OPTIONAL. Ask first: if the unit has no
+                    // touchscreen, it is automatically recorded as "-" without
+                    // running the touch test tool at all.
+                    var hasTouchscreen = Views.Windows.QcYesNoPopupWindow.Show(
+                        "Touchscreen",
+                        "Apakah unit ini memiliki Touchscreen?",
+                        "Ya, ada",
+                        "Tidak ada");
+
+                    if (!hasTouchscreen)
+                    {
+                        item.SetResult(
+                            Views.Windows.QcResultPopupWindow.QcResult.Skip,
+                            "Tidak ada touchscreen");
+                        item.InfoText = "Unit tanpa touchscreen — otomatis Optional (-).";
+                        break;
+                    }
+
                     var touchscreenAllOk = _runner.RunTouchscreenTest();
                     if (touchscreenAllOk)
                     {
@@ -706,7 +804,14 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                     break;
             }
 
-            item.IsChecked = true;
+            // Only tick the checklist when a result was actually chosen. If
+            // the result popup was closed without an answer, leave it unticked
+            // so mandatory validation can catch it.
+            if (item.HasResult)
+            {
+                item.IsChecked = true;
+            }
+
             UpdateAllStatuses();
             UpdateChecklistSummary();
         }
@@ -746,6 +851,24 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             {
                 item.SetResult(result);
             }
+
+            if (result != Views.Windows.QcResultPopupWindow.QcResult.None)
+            {
+                item.IsChecked = true;
+
+                if (item.Kind == QcChecklistKind.Benchmark)
+                {
+                    BenchmarkActionStatus = result switch
+                    {
+                        Views.Windows.QcResultPopupWindow.QcResult.Pass => "OK",
+                        Views.Windows.QcResultPopupWindow.QcResult.Skip => "- Optional",
+                        Views.Windows.QcResultPopupWindow.QcResult.Fail => "Fail",
+                        _ => "Idle"
+                    };
+                }
+            }
+
+            UpdateChecklistSummary();
         });
     }
 
@@ -846,6 +969,11 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             benchItem,
             "Benchmark - Status:",
             "Apakah hasil Benchmark OK?");
+
+        // Persist the badge / auto-note immediately after the Status popup.
+        benchItem.IsChecked = benchItem.HasResult;
+        UpdateAllStatuses();
+        UpdateChecklistSummary();
     }
 
     /// <summary>
@@ -935,15 +1063,28 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         {
             if (!map.TryGetValue(kind, out var item) || !item.HasResult)
                 return "-";
-            var label = item.ResultLabel;
-            if (item.ResultStatus == "FAIL" && !string.IsNullOrWhiteSpace(item.ResultNote))
-                return $"X ({item.ResultNote})";
-            return label;
+            if (item.ResultStatus == "FAIL")
+                return string.IsNullOrWhiteSpace(item.ResultNote)
+                    ? "Fail"
+                    : $"Fail ({item.ResultNote})";
+            if (item.ResultStatus == "SKIP")
+                return "- Optional";
+            return item.ResultLabel;
         }
 
-        // Order must match the QC list on the right panel exactly
+        var fisik = string.IsNullOrWhiteSpace(PhysicalScore)
+            ? "-"
+            : $"{PhysicalScore.Trim().TrimEnd('%').Trim()}%";
+        var tipe = string.IsNullOrWhiteSpace(LaptopModel) ? "-" : LaptopModel.Trim();
+        var kelengkapan = string.IsNullOrWhiteSpace(Completeness) ? "-" : Completeness.Trim();
+
+        // The manual ERP fields are placed first so they are immediately
+        // visible in the CATATAN OTOMATIS box.
         ChecklistSummary = string.Join(Environment.NewLine,
         [
+            $"Fisik = {fisik}",
+            $"Tipe Laptop = {tipe}",
+            $"Kelengkapan = {kelengkapan}",
             $"LCD = {R(QcChecklistKind.LcdTest)}",
             $"Storage Health = {R(QcChecklistKind.StorageHealth)}",
             $"Battery Health = {R(QcChecklistKind.BatteryHealth)}",
@@ -1020,7 +1161,9 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         }
 
         var tanggalTest = FormatDate(_qcStartDate);
-        var modelLaptop = ResolveModelLaptopForNotes(_cachedSystemModel, _cachedSystemManufacturer);
+        var modelLaptop = string.IsNullOrWhiteSpace(LaptopModel)
+            ? ResolveModelLaptopForNotes(_cachedSystemModel, _cachedSystemManufacturer)
+            : LaptopModel.Trim();
 
         UpsertLine(lines, "Kode Unit =", $"Kode Unit = {kodeUnit}");
         UpsertLine(lines, "Tanggal Test =", $"Tanggal Test = {tanggalTest}");
@@ -2526,6 +2669,87 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Mandatory QC parameters. If any of these has no PASS/FAIL result the
+    /// result cannot be sent to ERP (optional tests: Backlight/Touchscreen).
+    /// </summary>
+    private static readonly QcChecklistKind[] MandatoryKinds =
+    [
+        QcChecklistKind.LcdTest,
+        QcChecklistKind.StorageHealth,
+        QcChecklistKind.BatteryHealth,
+        QcChecklistKind.BatteryTest,
+        QcChecklistKind.KeyboardTest,
+        QcChecklistKind.AudioTest,
+        QcChecklistKind.PortTest,
+        QcChecklistKind.Touchpad,
+        QcChecklistKind.Wifi,
+        QcChecklistKind.Mic,
+        QcChecklistKind.Benchmark,
+        QcChecklistKind.Camera
+    ];
+
+    private List<string> CollectMissingMandatory()
+    {
+        var missing = new List<string>();
+
+        if (!TryGetPhysicalScore(out _))
+        {
+            missing.Add("Skor Fisik (%)");
+        }
+
+        if (string.IsNullOrWhiteSpace(LaptopModel))
+        {
+            missing.Add("Tipe / Model Laptop");
+        }
+
+        if (string.IsNullOrWhiteSpace(Completeness))
+        {
+            missing.Add("Kelengkapan");
+        }
+
+        var defaults = new Dictionary<QcChecklistKind, string>
+        {
+            [QcChecklistKind.LcdTest] = "LCD Test",
+            [QcChecklistKind.StorageHealth] = "Storage Health",
+            [QcChecklistKind.BatteryHealth] = "Battery Health",
+            [QcChecklistKind.BatteryTest] = "Battery Report",
+            [QcChecklistKind.KeyboardTest] = "Keyboard Test",
+            [QcChecklistKind.AudioTest] = "Audio Test",
+            [QcChecklistKind.PortTest] = "Port Test",
+            [QcChecklistKind.Touchpad] = "Touchpad",
+            [QcChecklistKind.Wifi] = "Wifi",
+            [QcChecklistKind.Mic] = "Mic",
+            [QcChecklistKind.Benchmark] = "Benchmark",
+            [QcChecklistKind.Camera] = "Camera"
+        };
+
+        foreach (var kind in MandatoryKinds)
+        {
+            var item = ChecklistItems.FirstOrDefault(x => x.Kind == kind);
+            var filled = item is not null
+                         && item.HasResult
+                         && (item.ResultStatus == "PASS" || item.ResultStatus == "FAIL");
+
+            if (!filled)
+            {
+                missing.Add(item?.Name ?? defaults[kind]);
+            }
+        }
+
+        return missing;
+    }
+
+    private bool TryGetPhysicalScore(out int score)
+    {
+        score = 0;
+        var raw = (PhysicalScore ?? string.Empty).Trim().TrimEnd('%').Trim();
+        return raw.Length > 0
+               && int.TryParse(raw, out score)
+               && score >= 0
+               && score <= 100;
+    }
+
     private async Task SyncToErpAsync()
     {
         if (string.IsNullOrWhiteSpace(PraQcCode))
@@ -2537,6 +2761,30 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         if (!IsConnected)
         {
             _feedback.ShowWarning("Klik Hubungkan terlebih dahulu untuk binding app ke unit ERP.");
+            return;
+        }
+
+        // Mandatory completeness gate. The ERP must never receive a partial QC
+        // result: show a popup listing every missing mandatory field/test.
+        var missing = CollectMissingMandatory();
+        if (missing.Count > 0)
+        {
+            ErpSyncStatus = "GAGAL kirim ke ERP: hasil QC belum lengkap (ada parameter wajib yang kosong).";
+            ErpSyncStatusColorBrush = System.Windows.Media.Brushes.OrangeRed;
+            _audio.PlayClose();
+
+            Views.Windows.QcMessagePopupWindow.Show(
+                "GAGAL Kirim ke ERP",
+                "Hasil QC tidak lengkap. Parameter wajib berikut belum diisi / di-test:\n\n• "
+                + string.Join("\n• ", missing)
+                + "\n\nLengkapi semua parameter wajib lalu klik Kirim ke ERP lagi.",
+                Views.Windows.QcMessageTone.Error);
+            return;
+        }
+
+        if (!TryGetPhysicalScore(out var physicalScore))
+        {
+            _feedback.ShowWarning("Skor Fisik harus berupa angka 0-100, contoh: 94%.");
             return;
         }
 
@@ -2592,7 +2840,8 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 _storageHealthPercent,
                 _batteryHealthPercent,
                 _batteryHealth2Percent,
-                _batteryLifetimeMinutes);
+                _batteryLifetimeMinutes,
+                physicalScore);
 
             // Overall status from the mapped ERP tests + numeric thresholds.
             var overallStatus = ComputeOverallStatus(tests, numericTests);
@@ -2604,7 +2853,10 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 PraQcCode = PraQcCode.Trim(),
                 SerialNumber = sysInfo.BiosSerialNumber,
                 Brand = _cachedSystemManufacturer,
-                Model = _cachedSystemModel,
+                // Tipe Laptop comes from the editable "Tipe/Model" box (auto-filled
+                // from System Information after ERP connect).
+                Model = LaptopModel.Trim(),
+                Completeness = Completeness.Trim(),
                 Specs = specs,
                 BatteryHealth = _batteryHealthPercent,
                 BatteryHealth2 = _batteryHealth2Percent,
@@ -2616,7 +2868,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 NumericTests = numericTests,
                 TestedBy = SelectedTester?.Name ?? sysInfo.UserName ?? "Teknisi QC",
                 TesterId = SelectedTester?.Id,
-                Notes = string.Empty
+                Notes = ChecklistSummary
             };
 
             // 5. Kirim ke Hub Contabo :8005
@@ -2652,10 +2904,11 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Split storage detail menjadi HDD vs SSD berdasarkan interface.
-    /// Aturan: NVMe / M.2 NVMe / SSD → SSD; HDD / M.2 SATA / SATA (I/II/III) → HDD.
-    /// Jika hanya terbaca SSD NVMe saja, kolom HDD dikosongkan.
-    /// Contoh input: "SSD M.2 NVMe — 238 GB" atau "HDD SATA III — 500 GB"
+    /// Split storage detail menjadi HDD vs SSD.
+    /// Prioritas: NVMe / SSD / solid state → kolom SSD (walaupun Windows
+    /// melaporkan MediaType "Fixed hard disk media" untuk NVMe).
+    /// HDD / hard disk / SATA (I/II/III) tanpa sinyal SSD → kolom HDD.
+    /// Contoh: "SSD M.2 NVMe — 238 GB" → SSD; "HDD SATA III — 500 GB" → HDD.
     /// </summary>
     private static (string hdd, string ssd) SplitStorageHddSsd(string storageDetail)
     {
@@ -2672,37 +2925,28 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
             var lower = p.ToLowerInvariant();
 
-            // SATA-family / rotational / hard-disk signals → HDD (Hardisk column).
-            var isHddFamily =
-                lower.Contains("m.2 sata") || lower.Contains("m2 sata") || lower.Contains("ngff")
-                || lower.Contains("sata ii") || lower.Contains("sata iii") || lower.Contains("sata3")
-                || lower.Contains("sata2")
-                || lower.Contains("hdd") || lower.Contains("hard disk") || lower.Contains("harddisk")
-                || lower.Contains("7200rpm") || lower.Contains("5400rpm");
-
-            // Solid-state signals → SSD column.
+            // Solid-state signals MUST win over "hard disk" / SATA: NVMe drives
+            // are reported as "Fixed hard disk media" by WMI, which used to push
+            // them into the HDD column.
             var isSsdFamily =
                 lower.Contains("nvme") || lower.Contains("ssd") || lower.Contains("solid state");
 
-            if (isHddFamily)
-            {
-                hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
-            }
-            else if (isSsdFamily)
+            var isHddFamily =
+                lower.Contains("hdd") || lower.Contains("hard disk") || lower.Contains("harddisk")
+                || lower.Contains("7200rpm") || lower.Contains("5400rpm");
+
+            if (isSsdFamily)
             {
                 ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
             }
+            else if (isHddFamily || lower.Contains("sata"))
+            {
+                hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
+            }
             else
             {
-                // Unknown disk: if it has a SATA interface treat as HDD, else SSD.
-                if (lower.Contains("sata"))
-                {
-                    hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
-                }
-                else
-                {
-                    ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
-                }
+                // Unknown disk without any interface hint: default to SSD.
+                ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
             }
         }
 
@@ -2968,7 +3212,7 @@ public sealed partial class QcChecklistItem : ObservableObject
                 HasResult = true;
                 break;
             case Views.Windows.QcResultPopupWindow.QcResult.Fail:
-                ResultLabel = "X";
+                ResultLabel = "Fail";
                 ResultColor = "#FFB91C1C";
                 ResultStatus = "FAIL";
                 HasResult = true;

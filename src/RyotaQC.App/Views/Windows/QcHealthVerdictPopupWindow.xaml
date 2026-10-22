@@ -9,7 +9,10 @@
         WindowStartupLocation="CenterOwner"
         Background="#0F1425"
         AllowsTransparency="True"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        Focusable="True"
+        Loaded="Window_Loaded"
+        PreviewKeyDown="Window_PreviewKeyDown">
     <Border CornerRadius="16" Background="#E60F1425" BorderBrush="#556FA7FF" BorderThickness="1.5" Padding="24">
         <Grid>
             <Grid.RowDefinitions>
@@ -57,10 +60,11 @@
             </Border>
 
             <TextBlock Grid.Row="2"
-                       Text="Pilih hasil QC untuk parameter ini:"
+                       Text="Enter = OK   ·   Space = Optional   ·   Esc = Fail"
                        Foreground="#AEB7CA"
                        FontFamily="Segoe UI"
-                       FontSize="13"
+                       FontSize="11.5"
+                       TextAlignment="Center"
                        Margin="0,16,0,0" />
 
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
@@ -71,7 +75,7 @@
                             <Border x:Name="OkBorder" CornerRadius="12" Background="#FF1E7A4B" BorderBrush="#5539C86B" BorderThickness="1.5">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" />
-                                    <TextBlock Text="OK / Pass" FontFamily="Segoe UI" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="OK" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -90,7 +94,7 @@
                             <Border x:Name="OptBorder" CornerRadius="12" Background="#44444444" BorderBrush="#66FFFFFF" BorderThickness="1.5">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFFFFF" HorizontalAlignment="Center" />
-                                    <TextBlock Text="- Optional" FontFamily="Segoe UI" FontSize="13" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="Optional" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -109,7 +113,7 @@
                             <Border x:Name="FailBorder" CornerRadius="12" Background="#FFB91C1C" BorderBrush="#55FF4444" BorderThickness="1.5">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" />
-                                    <TextBlock Text="X / Fail" FontFamily="Segoe UI" FontSize="13" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="Fail" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>

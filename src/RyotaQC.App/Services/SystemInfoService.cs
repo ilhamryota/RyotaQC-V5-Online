@@ -336,7 +336,11 @@ public sealed class SystemInfoService : ISystemInfoService
     /// <summary>
     /// Returns the storage family for a physical disk based on interface and media type.
     /// Rules (per QC requirement): NVMe / M.2 NVMe / SSD → "SSD";
-    /// anything on HDD / M.2 SATA / SATA (I/II/III) → "HDD".
+    /// HDD / SATA (I/II/III) without a solid-state signal → "HDD".
+    ///
+    /// NVMe/SSD is checked FIRST because Windows reports NVMe drives with
+    /// MediaType "Fixed hard disk media" — checking "hard disk" first was the
+    /// bug that sent NVMe/SSD units into the ERP HDD column.
     /// </summary>
     private static string ResolveSimpleMediaType(ManagementObject disk)
     {
@@ -346,21 +350,18 @@ public sealed class SystemInfoService : ISystemInfoService
         var iface = disk["InterfaceType"]?.ToString() ?? string.Empty;
         var raw = $"{model} {meta} {pnp} {iface}".ToLowerInvariant();
 
-        // SATA-family and rotational drives are treated as HDD, even when the
-        // model name claims "SSD" (e.g. M.2 SATA SSDs report MediaType "Fixed hard disk").
-        if (raw.Contains("m.2 sata") || raw.Contains("m2 sata") || raw.Contains("ngff")
-            || raw.Contains("sata ii") || raw.Contains("sata iii") || raw.Contains("sata3")
-            || raw.Contains("sata2") || raw.Contains("sata i ") || raw.Contains("hdd")
-            || raw.Contains("hard disk") || raw.Contains("harddisk")
-            || raw.Contains("7200rpm") || raw.Contains("5400rpm"))
-        {
-            return "HDD";
-        }
-
-        // NVMe / M.2 NVMe / SSD (any remaining solid-state signal) → SSD.
+        // NVMe / M.2 NVMe / SSD (explicit solid-state signals) → SSD.
         if (raw.Contains("nvme") || raw.Contains("ssd") || raw.Contains("solid state"))
         {
             return "SSD";
+        }
+
+        // HDD / rotational drives / SATA-family without SSD signal → HDD.
+        if (raw.Contains("hdd") || raw.Contains("hard disk") || raw.Contains("harddisk")
+            || raw.Contains("sata")
+            || raw.Contains("7200rpm") || raw.Contains("5400rpm"))
+        {
+            return "HDD";
         }
 
         return "Disk";

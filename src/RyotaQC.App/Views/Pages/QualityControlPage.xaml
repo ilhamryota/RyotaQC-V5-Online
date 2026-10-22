@@ -137,7 +137,7 @@
 
                     <TextBox Text="{Binding ChecklistSummary}"
                              Style="{StaticResource SearchTextBoxStyle}"
-                             Height="130"
+                             Height="190"
                              IsReadOnly="True"
                              AcceptsReturn="True"
                              TextWrapping="Wrap"
@@ -188,6 +188,74 @@
                                     </Style>
                                 </TextBlock.Style>
                             </TextBlock>
+
+                            <!-- Skor fisik (wajib, manual) -->
+                            <TextBlock Text="SKOR FISIK (%)  ·  WAJIB"
+                                       FontFamily="Bahnschrift SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="0,4,0,4" />
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding PhysicalScore, UpdateSourceTrigger=PropertyChanged}"
+                                         Height="32"
+                                         MaxLength="4"
+                                         FontSize="13"
+                                         Foreground="#FFF4F7FF"
+                                         CaretBrush="#FFF4F7FF"
+                                         Background="#FF0B0F17"
+                                         BorderBrush="#FF1E293B"
+                                         Padding="8,0"
+                                         VerticalContentAlignment="Center"
+                                         ToolTip="Isi angka 0-100, contoh: 94 (otomatis menjadi 94%)" />
+                                <TextBlock Grid.Column="1"
+                                           Text="%"
+                                           FontFamily="Bahnschrift SemiBold"
+                                           FontSize="13"
+                                           Foreground="#FF60A5FA"
+                                           VerticalAlignment="Center"
+                                           Margin="6,0,2,0" />
+                            </Grid>
+
+                            <!-- Tipe / model laptop (wajib, auto dari System Information, bisa diedit) -->
+                            <TextBlock Text="TIPE / MODEL LAPTOP  ·  WAJIB"
+                                       FontFamily="Bahnschrift SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="0,0,0,4" />
+                            <TextBox Text="{Binding LaptopModel, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="32"
+                                     FontSize="13"
+                                     Foreground="#FFF4F7FF"
+                                     CaretBrush="#FFF4F7FF"
+                                     Background="#FF0B0F17"
+                                     BorderBrush="#FF1E293B"
+                                     Padding="8,0"
+                                     VerticalContentAlignment="Center"
+                                     Margin="0,0,0,8"
+                                     ToolTip="Otomatis dari System Information setelah terhubung ke ERP. Bisa diedit atau dihapus lalu diketik ulang." />
+
+                            <!-- Kelengkapan (wajib, manual) -->
+                            <TextBlock Text="KELENGKAPAN  ·  WAJIB"
+                                       FontFamily="Bahnschrift SemiBold"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       Margin="0,0,0,4" />
+                            <TextBox Text="{Binding Completeness, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="32"
+                                     FontSize="13"
+                                     Foreground="#FFF4F7FF"
+                                     CaretBrush="#FFF4F7FF"
+                                     Background="#FF0B0F17"
+                                     BorderBrush="#FF1E293B"
+                                     Padding="8,0"
+                                     VerticalContentAlignment="Center"
+                                     Margin="0,0,0,10"
+                                     ToolTip="Contoh: Charger 65W, tas, dus. Otomatis masuk ke kolom Kelengkapan di ERP." />
 
                             <!-- Status dropdown -->
                             <TextBlock Text="STATUS QC"
@@ -286,7 +354,8 @@
                                                     Margin="0,0,8,0" />
 
                                             <!-- Color-coded result box (OK/-/X) -->
-                                            <Border Grid.Column="2" Width="56" Height="28" CornerRadius="6"
+                                            <Border Grid.Column="2" MinWidth="56" Height="28" CornerRadius="6"
+                                                    Padding="8,0"
                                                     Margin="0,0,8,0"
                                                     BorderThickness="1"
                                                     BorderBrush="#44FFFFFF"
@@ -320,21 +389,47 @@
                         <Border CornerRadius="8" Background="#FF131B2E" BorderBrush="#FF1E293B" BorderThickness="1" Padding="12"
                                 Margin="0,2,0,0">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <CheckBox IsChecked="{Binding BenchmarkChecklistItem.IsChecked, Mode=TwoWay}"
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,8,0"
-                                              Width="20"
-                                              Height="20" />
-                                    <Image Source="Assets/Images/Icons/QC/benchmark.png"
-                                           Width="24"
-                                           Height="24"
-                                           Margin="0,0,8,0" />
-                                    <TextBlock Text="Benchmark"
-                                               FontFamily="Bahnschrift SemiBold"
-                                               FontSize="19"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" />
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <CheckBox IsChecked="{Binding BenchmarkChecklistItem.IsChecked, Mode=TwoWay}"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,8,0"
+                                                  Width="20"
+                                                  Height="20" />
+                                        <Image Source="Assets/Images/Icons/QC/benchmark.png"
+                                               Width="24"
+                                               Height="24"
+                                               Margin="0,0,8,0" />
+                                        <TextBlock Text="Benchmark"
+                                                   FontFamily="Bahnschrift SemiBold"
+                                                   FontSize="19"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    </StackPanel>
+
+                                    <!-- Result badge at the far right: OK (green), Optional (neutral), Fail (red). -->
+                                    <Border Grid.Column="1"
+                                            MinWidth="58"
+                                            Height="28"
+                                            CornerRadius="6"
+                                            Padding="8,0"
+                                            BorderThickness="1"
+                                            BorderBrush="#44FFFFFF"
+                                            Background="{Binding BenchmarkChecklistItem.ResultColor}"
+                                            Visibility="{Binding BenchmarkChecklistItem.HasResult, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding BenchmarkChecklistItem.ResultLabel}"
+                                                   FontFamily="Bahnschrift SemiBold"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
 
                                 <ComboBox ItemsSource="{Binding BenchmarkOptions}"
                                           SelectedItem="{Binding SelectedBenchmark, Mode=TwoWay}"

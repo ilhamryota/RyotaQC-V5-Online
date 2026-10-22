@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Effects;
 using RyotaQC.App.ViewModels.Pages;
 using RyotaQC.App.Views.Windows;
 
@@ -45,9 +46,26 @@ public partial class QualityControlPage : Page
 
     private void ShowErpSyncGate()
     {
+        var owner = Window.GetWindow(this);
+        UIElement? blurTarget = null;
+        Effect? previousEffect = null;
+
         try
         {
-            var owner = Window.GetWindow(this);
+            // Blur the whole application window behind the modal so the
+            // "Hubungkan ke ERP" card is the clear focus point (mockup effect).
+            if (owner?.Content is UIElement ownerRoot)
+            {
+                blurTarget = ownerRoot;
+                previousEffect = ownerRoot.Effect;
+                ownerRoot.Effect = new BlurEffect
+                {
+                    Radius = 10,
+                    KernelType = KernelType.Gaussian,
+                    RenderingBias = RenderingBias.Performance
+                };
+            }
+
             var current = _viewModel.CurrentErpConnection;
             var result = QcErpSyncWindow.Show(_viewModel.ErpSyncService, owner, current);
             _viewModel.ApplyErpConnection(result);
@@ -55,6 +73,14 @@ public partial class QualityControlPage : Page
         catch
         {
             // The gate is best-effort; never block the QC menu on a popup error.
+        }
+        finally
+        {
+            // Always restore the background, even when the popup throws.
+            if (blurTarget is not null)
+            {
+                blurTarget.Effect = previousEffect;
+            }
         }
     }
 }

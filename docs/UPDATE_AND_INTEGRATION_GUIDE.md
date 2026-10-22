@@ -1,4 +1,4 @@
-# RyotaQC V5.0.8 - Panduan Update & Integrasi ERP
+# RyotaQC V5.0.9 - Panduan Update & Integrasi ERP
 
 Dokumen ini menjelaskan:
 1. Cara update aplikasi (auto-update & manual)
@@ -11,7 +11,7 @@ Dokumen ini menjelaskan:
 > (penjelasan di bagian 2). Karena itu auto-update dari versi-versi tersebut
 > **tidak akan pernah berhasil** — paket terpasang, tapi aplikasi tetap versi lama.
 >
-> **Lakukan update manual sekali** ke v5.0.8 (bagian 1.B). Setelah berada di
+> **Lakukan update manual sekali** ke v5.0.9 (bagian 1.B). Setelah berada di
 > v5.0.6 atau lebih baru, auto-update ke versi berikutnya berjalan normal.
 
 ---
@@ -66,18 +66,18 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 ### B. Update Manual (WAJIB untuk semua user di bawah v5.0.6)
 
 1. Buka https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh `RyotaQC-V5-Setup-x64-v5.0.8.exe` (~318 MB) **dan** `SHA256SUMS.txt`
+2. Unduh `RyotaQC-V5-Setup-x64-v5.0.9.exe` (~318 MB) **dan** `SHA256SUMS.txt`
 3. **Verifikasi unduhan** (penting — unduhan terpotong adalah penyebab paling
    umum pesan "This app can't run on your PC"):
 
    ```powershell
-   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.8.exe -Algorithm SHA256
+   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.9.exe -Algorithm SHA256
    # bandingkan hasilnya dengan baris di SHA256SUMS.txt
    ```
 
 4. Tutup aplikasi RyotaQC yang sedang berjalan
 5. Jalankan installer (klik kanan → **Run as administrator**), tunggu selesai
-6. Buka app → nomor versi harus **v5.0.8**
+6. Buka app → nomor versi harus **v5.0.9**
 
 ---
 
@@ -198,8 +198,8 @@ langsung, pesan error lebih detail (HTTP code / ukuran yang diterima).
 | GET | `/api/v1/health` | Cek status hub + target DB |
 | GET | `/api/v1/switcher/target-db` | Cek DB aktif (dev/prod) |
 | GET | `/api/v1/qc/po/:poNumber/units` | List unit per PO (filter LUNAS/DP) |
-| GET | `/api/v1/qc/testers` | List tester tersimpan |
-| POST | `/api/v1/qc/testers` | Daftarkan tester baru |
+| GET | `/api/v1/qc/testers` | List tester dari user ERP (role HEAD_GUDANG, status ACTIVE) |
+| POST | `/api/v1/qc/testers` | Daftarkan tester baru ke database ERP (role HEAD_GUDANG) |
 | POST | `/api/v1/qc/submit` | Kirim hasil QC + pindah Kanban |
 
 ### Alur Pemakaian
@@ -211,7 +211,7 @@ langsung, pesan error lebih detail (HTTP code / ukuran yang diterima).
 3. **Gudang** → Receive PO → unit otomatis masuk `QC_QUEUE`
 4. Buka **Menu Quality Control** → unit muncul di kolom **ANTREAN**
 
-**STEP 2 — Aplikasi RyotaQC V5.0.8**
+**STEP 2 — Aplikasi RyotaQC V5.0.9**
 
 Setiap kali menu **Quality Control** dibuka, muncul popup **Hubungkan ke ERP**
 dengan dua mode (pilih salah satu, hanya satu panel yang tampil):
@@ -226,7 +226,7 @@ dengan dua mode (pilih salah satu, hanya satu panel yang tampil):
      serial / pra-QC code) → klik **Cari**
    - Detail unit tampil (pra-QC code, serial, produk, brand, PO, status kanban)
    - Klik **Hubungkan ke ERP**
-3. **Tester:** pilih dari dropdown, atau isi nama baru + klik **+**
+3. **Tester (wajib):** pilih dari dropdown — datanya ditarik dari user ERP (role HEAD_GUDANG, sama dengan dropdown tester di ERP). Untuk tester baru, isi nama lalu klik **Add New Tester**; tester disimpan ke database ERP, muncul di dropdown, dan otomatis mengisi kolom **Tester QC** di kanban.
 4. Status di bawah tombol berjalan sampai **Terhubung**, lalu popup menutup dan
    menu QC bisa dipakai.
 5. Klik **Tanpa ERP** kalau tidak ingin menghubungkan unit (QC tetap jalan,
@@ -239,35 +239,49 @@ Setelah terhubung, di atas halaman QC tampil **badge koneksi**:
 Panel **ESTERAONE ERP — UNIT TERHUBUNG** di halaman QC tetap menampilkan unit
 terikat + tombol **Kirim ke ERP**.
 
-5. Jalankan semua test QC di panel kanan. Beberapa test memakai popup khusus:
-   - **Storage Health** → popup input angka → popup verdict **OK / "-" Optional / X Fail** (70–100% = PASS, <70% = FAIL)
+5. Isi tiga kolom wajib di atas STATUS QC:
+   - **SKOR FISIK (%)** — angka 0–100, contoh `94` (otomatis menjadi `94%`)
+   - **TIPE / MODEL LAPTOP** — otomatis dari System Information setelah terhubung ERP, tetap bisa diedit
+   - **KELENGKAPAN** — bebas, contoh `Charger 65W, tas, dus`
+
+6. Jalankan semua test QC di panel kanan. Semua popup hasil memakai format yang sama: **OK** (hijau), **Optional** (abu-abu), **Fail** (merah + catatan). Shortcut: **Enter = OK**, **Space = Optional**, **Esc = Fail**. Beberapa test memakai popup khusus:
+   - **Storage Health** → popup input angka → popup verdict **OK / Optional / Fail** (70–100% = PASS, <70% = FAIL)
    - **Battery Health** → popup **Battery Health 1 (wajib)** + **Battery Health 2 (opsional, hanya jika 2 battery)**, auto-isi dari health terbaca → popup verdict. Hasil tampil mis. `100% OK` atau `100% / 70% OK`
    - **Battery Report** → popup hasil + popup durasi (jam & menit) → mengisi **Estimasi Batt.lifetime** di ERP
-   - **Fail (X)** → diminta catatan alasan, disimpan ke checklist QC test tersebut dengan status FAIL
-   - **Touchscreen / Backlight / Fingerprint** tanpa hasil → dikirim sebagai `"-"` (opsional)
-6. Pilih **STATUS QC**:
+   - **Touchscreen** → ditanya **"Apakah unit ini memiliki Touchscreen?"** lebih dulu. **Ya** → test touch; **Tidak** → otomatis `Optional (-)`.
+   - **Benchmark** → tombol **Status** menampilkan popup hasil. Hasil langsung tampil di badge paling kanan dan tersimpan di **Catatan Otomatis**.
+   - **Fail** → diminta catatan alasan, disimpan ke checklist QC test tersebut dengan status FAIL
+   - **Backlight** tanpa hasil → dikirim sebagai `"-"` (opsional)
+7. Pilih **STATUS QC**:
    | Pilihan | Kanban Tujuan | Keterangan |
    |---------|---------------|------------|
    | `LULUS` | SELESAI | Unit lolos QC |
    | `SERVICE` | SERVIS | Perlu perbaikan |
    | `RETUR` | RETUR | Masuk manajemen retur |
    | `RUNNING_TEST` | TES RUNNING | Masih diuji |
-7. Klik **Kirim ke ERP**
+8. Klik **Kirim ke ERP**. Jika ada parameter wajib yang belum diisi/ditest, muncul popup **"GAGAL Kirim ke ERP"** berisi daftar yang kurang; pengiriman tidak dilakukan sampai semuanya lengkap.
 
 **STEP 3 — Verifikasi di Web ERP**
 
 - Refresh **Menu Quality Control**
 - Kartu unit sudah pindah kolom sesuai STATUS QC
 - Klik kartu → tab **Checklist QC** terisi lengkap: spec hardware, tiap test (PASS/FAIL/ISSUE/"-"),
-  numeric (hddSsdHealth, batteryHealth, batteryHealth2), Estimasi Batt.lifetime, dan catatan fail per test
+  numeric (hddSsdHealth, batteryHealth, batteryHealth2, physicalCondition), Estimasi Batt.lifetime, catatan fail per test,
+  **Tipe Laptop**, **Kelengkapan**, dan **Tester QC**.
 
 ### Data yang Dikirim ke ERP
+
+**Identitas unit (qcData):**
+- **Tipe Laptop** — kolom **TIPE / MODEL LAPTOP** (otomatis dari System Information, bisa diedit)
+- **Kelengkapan** — kolom **KELENGKAPAN** (bebas)
+- **Tester QC** — `testerId` + `qcBy`, dari tester ERP yang dipilih
+- **Catatan Otomatis** — `notes` (termasuk `Fisik = …%`, `Tipe Laptop = …`, `Kelengkapan = …`)
 
 **Spec hardware (otomatis dari WMI):**
 - Processor (CPU)
 - RAM
 - Storage HDD (terpisah, hanya HDD/SATA/M.2 SATA)
-- Storage SSD (terpisah, NVMe/M.2 NVMe/SSD)
+- Storage SSD (terpisah, NVMe/M.2 NVMe/SSD) — NVMe yang dilaporkan Windows sebagai "Fixed hard disk media" tetap masuk SSD
 - VGA — support dual: `Intel HD 530 + RTX 3090`
 - Display — resolusi + refresh rate (+ label Touchscreen jika touch)
 
@@ -298,6 +312,7 @@ terikat + tombol **Kirim ke ERP**.
 | Health battery 1 | `batteryHealth` | input Battery Health 1 |
 | Health battery 2 | `batteryHealth2` | input Battery Health 2 (jika ada) |
 | Estimasi battery | `batteryLifetime` | durasi Battery Report (menit) |
+| Skor fisik | `physicalCondition` | kolom **SKOR FISIK (%)** |
 
 **Status per test:**
 - `PASS` (hijau) → OK
@@ -351,6 +366,14 @@ terikat + tombol **Kirim ke ERP**.
 | **v5.0.8**: badge koneksi di layar QC (`PO … · EST-…` / `KODE UNIT EST-…`) | ✅ |
 | **v5.0.8**: dropdown kode unit ringkas (tidak lagi memakan ruang popup) | ✅ tinggi 36 px, daftar maks 170 px |
 | **Release v5.0.8** | ✅ ter-upload, `latest` — Setup 333.764.962 byte (SHA-256 `A0A8B5C0…B6D2D3`), ZIP 384.061.880 byte (726 entry, payload 5.0.8.0), `SHA256SUMS.txt` identik lokal vs GitHub |
+| **v5.0.9**: popup ERP didesain ulang + blur latar + teks dropdown putih | ✅ |
+| **v5.0.9**: tester ditarik dari user ERP + wajib + Add New Tester tersimpan ke database | ✅ hub `GET/POST /api/v1/qc/testers` diuji (10 user HEAD_GUDANG aktif, POST membuat user ERP + `singleTester`) |
+| **v5.0.9**: popup hasil seragam OK / Optional / Fail + shortcut Enter/Space/Esc | ✅ |
+| **v5.0.9**: Touchscreen ditanya dulu; Tidak → otomatis Optional (-) | ✅ |
+| **v5.0.9**: Benchmark badge persist + Catatan Otomatis + Skor Fisik/Tipe/Kelengkapan → payload ERP | ✅ |
+| **v5.0.9**: validasi wajib + popup "GAGAL Kirim ke ERP" | ✅ |
+| **v5.0.9**: storage NVMe/SSD → Storage SSD, HDD/SATA → Storage HDD | ✅ akar masalah `Fixed hard disk media` diperbaiki (SSD dicek lebih dulu) |
+| **Release v5.0.9** | ✅ ter-upload, `latest` — Setup 333.778.539 byte (SHA-256 `7006DA9C…B0B4AC`), ZIP 384.078.197 byte (726 entry, payload 5.0.9.0), `SHA256SUMS.txt` identik lokal vs GitHub |
 
 ---
 
@@ -361,7 +384,7 @@ terikat + tombol **Kirim ke ERP**.
 | 1 | Patch `warehouse.controller.ts` (auto-fill bank supplier) | Perlu rebuild BE |
 | 2 | Restart ERP BE | `sudo -u admin /usr/bin/pm2 restart esteraone-green-be` |
 | 3 | Test dari app v5.0.6 terinstall (manual update dulu untuk user < v5.0.6) | Perlu install di laptop teknisi |
-| 4 | **Uji alur auto-update end-to-end di laptop teknisi: v5.0.7 → v5.0.8** (buka app → "Update Sekarang" → unduh 100% → "Install Sekarang" → setujui UAC → app terbuka lagi → "Update berhasil" → badge menu utama = v5.0.8) | Butuh laptop teknisi yang sudah v5.0.7 (mesin dev tidak elevated) |
+| 4 | **Uji alur auto-update end-to-end di laptop teknisi: v5.0.8 → v5.0.9** (buka app → "Update Sekarang" → unduh 100% → "Install Sekarang" → setujui UAC → app terbuka lagi → "Update berhasil" → badge menu utama = v5.0.9) | Butuh laptop teknisi yang sudah v5.0.8 (mesin dev tidak elevated) |
 
 ### Cara Restart Service di VPS
 
@@ -387,7 +410,7 @@ curl -s http://127.0.0.1:8005/api/v1/switcher/target-db
 ## 6. REFERENSI CEPAT
 
 **Repositori:** https://github.com/ilhamryota/RyotaQC-V5-Online
-**Release terbaru (v5.0.8):** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.8
+**Release terbaru (v5.0.9):** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.9
 **Release v5.0.7:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.7
 **Release v5.0.6:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.6
 **Release lama (jangan dipakai untuk install baru):** v5.0.3 / v5.0.4 / v5.0.5

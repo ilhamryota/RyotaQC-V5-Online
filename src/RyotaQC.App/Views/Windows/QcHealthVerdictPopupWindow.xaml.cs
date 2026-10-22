@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 
 namespace RyotaQC.App.Views.Windows;
 
@@ -21,6 +22,31 @@ public partial class QcHealthVerdictPopupWindow : Window
             VerdictHintText.Text = hintText;
         }
         Services.Sfx.Action();
+    }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        Focus();
+        Keyboard.Focus(this);
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter:
+                e.Handled = true;
+                Ok_Click(sender, e);
+                break;
+            case Key.Space:
+                e.Handled = true;
+                Optional_Click(sender, e);
+                break;
+            case Key.Escape:
+                e.Handled = true;
+                Fail_Click(sender, e);
+                break;
+        }
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)

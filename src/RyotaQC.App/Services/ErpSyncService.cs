@@ -126,6 +126,10 @@ public class ErpQcPayload
     public string SerialNumber { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
+
+    /// <summary>Unit completeness / accessories, mapped to qcData.completeness in ERP.</summary>
+    public string Completeness { get; set; } = string.Empty;
+
     public ErpSpecs Specs { get; set; } = new();
     public int? BatteryHealth { get; set; }
     public int? BatteryHealth2 { get; set; }

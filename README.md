@@ -22,15 +22,15 @@ Dibangun dengan C# + WPF + MVVM · .NET 10 · Auto-update dari GitHub Releases
 > bukan cara install, dan bisa memunculkan error *"This app can't run on your PC"*.
 
 1. Buka halaman **Releases**: https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh **`RyotaQC-V5-Setup-x64-v5.0.8.exe`** dan **`SHA256SUMS.txt`**
+2. Unduh **`RyotaQC-V5-Setup-x64-v5.0.9.exe`** dan **`SHA256SUMS.txt`**
 3. Verifikasi unduhan (wajib — unduhan terpotong adalah penyebab umum error "can't run"):
    ```powershell
-   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.8.exe -Algorithm SHA256
+   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.9.exe -Algorithm SHA256
    ```
    Cocokkan hasilnya dengan baris di `SHA256SUMS.txt`.
 4. Tutup aplikasi RyotaQC bila sedang berjalan
 5. Klik kanan installer → **Run as administrator** → tunggu sampai selesai
-6. Buka aplikasi dan pastikan nomor versi di menu utama sudah **v5.0.8**
+6. Buka aplikasi dan pastikan nomor versi di menu utama sudah **v5.0.9**
 
 > User yang masih di v5.0.2 / v5.0.3 / v5.0.4 / v5.0.5 **wajib** update manual
 > sekali (langkah di atas) — auto-update dari versi-versi itu tidak akan berhasil,
@@ -63,7 +63,14 @@ Dibangun dengan C# + WPF + MVVM · .NET 10 · Auto-update dari GitHub Releases
 
 LCD Test, Storage Health, Battery Health, Battery Report, Keyboard Test, Audio Test, Benchmark, Camera, Touchscreen Test, Port Test, Touchpad, WiFi, Backlight, Mic.
 
-Setiap test punya popup hasil: **OK** (Pass) / **-** (Skip) / **X** (Fail + catatan).
+Setiap test punya popup hasil seragam: **OK** (hijau) / **Optional** (abu-abu) / **Fail** (merah + catatan).
+Shortcut: **Enter = OK**, **Space = Optional**, **Esc = Fail**.
+
+Sebelum hasil dikirim ke ERP, parameter wajib harus lengkap: **Skor Fisik**, **Tipe/Model Laptop**, **Kelengkapan**, LCD, Storage Health, Battery Health, Battery Report, Keyboard, Audio, Port, Touchpad, WiFi, Mic, Benchmark, dan Camera. Backlight & Touchscreen opsional (otomatis `-`). Jika ada yang kosong, pengiriman ditolak dengan popup **"GAGAL Kirim ke ERP"** yang menyebutkan item yang belum diisi.
+
+Tester QC **wajib dipilih** dan datanya ditarik langsung dari user ERP; tester baru bisa didaftarkan dari popup dan langsung tersimpan di database ERP. Tester terpilih otomatis mengisi kolom **Tester QC** pada kanban.
+
+Storage NVMe/SSD/M.2 NVMe otomatis masuk kolom **Storage SSD**, sedangkan HDD/SATA masuk **Storage HDD**.
 
 Hasil QC bisa:
 - Disimpan sebagai **PDF** (QuestPDF)
@@ -105,19 +112,19 @@ folder `publish\` buatan tangan:
 
 ```powershell
 # 1. Publish aplikasi + staging payload ke release\staging\RyotaQC-V5
-powershell -File scripts\01-publish-release.ps1 -Version 5.0.8
+powershell -File scripts\01-publish-release.ps1 -Version 5.0.9
 
 # 2. Compile Setup EXE (script ini MENOLAK jalan kalau versi payload != versi rilis)
-powershell -File scripts\02-build-setup.ps1 -Version 5.0.8 `
+powershell -File scripts\02-build-setup.ps1 -Version 5.0.9 `
   -InnoCompilerPath "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 
 # 3. ZIP update (isi di root, tanpa wrapper folder) + SHA256SUMS.txt
-powershell -File scripts\04-build-update-zip.ps1 -Version 5.0.8
+powershell -File scripts\04-build-update-zip.ps1 -Version 5.0.9
 ```
 
 Hasil ada di `release\`:
-- `RyotaQC-V5-Setup-x64-v5.0.8.exe` — installer
-- `RyotaQC-V5-Update-v5.0.8.zip` — paket auto-update
+- `RyotaQC-V5-Setup-x64-v5.0.9.exe` — installer
+- `RyotaQC-V5-Update-v5.0.9.zip` — paket auto-update
 - `SHA256SUMS.txt` — checksum, di-upload juga ke release
 
 **Penting:** semua `#define` di `installer\RyotaQC.Setup.iss` dibungkus
@@ -127,7 +134,7 @@ rilis v5.0.3 / v5.0.4 / v5.0.5 tidak pernah benar-benar meng-update aplikasi.
 
 ## Versi
 
-- Versi saat ini: **5.0.8**
+- Versi saat ini: **5.0.9**
 - Setiap update naik 1 angka di belakang: 5.0.2 → 5.0.3 → 5.0.4 ...
 - Versi ditampilkan di menu utama aplikasi.
 
