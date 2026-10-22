@@ -483,6 +483,21 @@ public sealed class AppUpdateService : IAppUpdateService
 
     private static readonly object LogSync = new();
 
+    private static string? _pendingUpdateWarning;
+
+    /// <summary>
+    /// Returns (and clears) the warning describing a previous update attempt
+    /// that did not actually change the installed version. The startup path
+    /// shows it exactly once, so a silent "still the old version" can never
+    /// happen unnoticed again.
+    /// </summary>
+    public static string? ConsumePendingUpdateWarning()
+    {
+        var warning = _pendingUpdateWarning;
+        _pendingUpdateWarning = null;
+        return warning;
+    }
+
     private static string LogFilePath =>
         Path.Combine(FileAppLogger.ResolveLogFolder(), "update.log");
 
@@ -739,6 +754,16 @@ public sealed class AppUpdateService : IAppUpdateService
             {
                 Log($"WARNING: previous update to {target} did NOT take effect - still running " +
                     $"{current} (asset {assetName}). The installer most likely contained an older payload.");
+
+                // Also make it visible in the UI: a failed update must never be
+                // silent, otherwise the main menu keeps showing the old version
+                // and nobody knows why.
+                _pendingUpdateWarning =
+                    $"Update ke v{target} selesai dijalankan, tetapi aplikasi masih versi " +
+                    $"v{current.Major}.{current.Minor}.{current.Build}." + Environment.NewLine + Environment.NewLine +
+                    "Aplikasi akan mencoba update lagi saat dibuka. Kalau masalah ini berulang, " +
+                    "kirim file log berikut ke pengembang:" + Environment.NewLine +
+                    LogFilePath;
             }
         }
         catch (Exception ex)

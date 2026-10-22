@@ -133,6 +133,21 @@ public partial class App : Application
 
             var updateService = Services.GetRequiredService<IAppUpdateService>();
             var update = await updateService.CheckForUpdateAsync();
+
+            // If the previous update did not actually change the installed
+            // version, tell the user instead of letting it pass silently - the
+            // main menu would otherwise keep showing the old version with no
+            // explanation.
+            var pendingWarning = AppUpdateService.ConsumePendingUpdateWarning();
+            if (!string.IsNullOrWhiteSpace(pendingWarning))
+            {
+                Dispatcher.Invoke(() => MessageBox.Show(
+                    pendingWarning,
+                    "Update Tidak Terpasang",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning));
+            }
+
             if (update is null)
             {
                 return;

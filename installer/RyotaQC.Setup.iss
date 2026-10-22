@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.6"
+  #define AppVersion "5.0.7"
 #endif
 
 #define AppName "RyotaQC V5"
