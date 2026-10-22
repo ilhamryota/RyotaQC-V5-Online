@@ -13,9 +13,32 @@ public interface IAppUpdateService
     Task<AppUpdateInfo?> CheckForUpdateAsync();
 
     /// <summary>
-    /// Download the update package (installer EXE preferred, ZIP as fallback),
-    /// then launch it so it can replace the app and restart it.
-    /// Returns (success, errorMessage).
+    /// Downloads the release's installer EXE, verifies its size, PE header and
+    /// SHA-256, then stores it in the persistent updates folder and records a
+    /// "ready to install" marker. Nothing is installed here: the caller decides
+    /// whether to install now or later.
     /// </summary>
-    Task<(bool Success, string? Error)> DownloadAndApplyUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null);
+    Task<(bool Success, string? Error)> DownloadUpdateAsync(AppUpdateInfo update, IProgress<int>? progress = null);
+
+    /// <summary>
+    /// Returns the previously downloaded update that is waiting to be installed
+    /// (null when there is none, or when it is already outdated).
+    /// </summary>
+    ReadyUpdate? GetReadyUpdate();
+
+    /// <summary>
+    /// Starts the elevated helper that waits for this process to exit, runs the
+    /// installer silently, records the result and relaunches the application.
+    /// The caller is expected to shut the app down right after this succeeds.
+    /// </summary>
+    Task<(bool Success, string? Error)> StartInstallAsync(ReadyUpdate ready);
+
+    /// <summary>
+    /// Reads (and removes) the result written by the install helper. Returns
+    /// null when there is no pending result. Called once at startup.
+    /// </summary>
+    InstallOutcome? ConsumeInstallOutcome();
+
+    /// <summary>Deletes the pending download marker and its installer file.</summary>
+    void DiscardReadyUpdate();
 }

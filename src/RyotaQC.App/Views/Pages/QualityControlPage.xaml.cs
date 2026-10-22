@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using RyotaQC.App.Services;
 using RyotaQC.App.ViewModels.Pages;
 using RyotaQC.App.Views.Windows;
 
@@ -9,7 +8,7 @@ namespace RyotaQC.App.Views.Pages;
 public partial class QualityControlPage : Page
 {
     private readonly QualityControlPageViewModel _viewModel;
-    private bool _erpGateShown;
+    private bool _gateOpen;
 
     public QualityControlPage(QualityControlPageViewModel viewModel)
     {
@@ -17,20 +16,28 @@ public partial class QualityControlPage : Page
         _viewModel = viewModel;
         DataContext = viewModel;
 
-        // Show the EsteraOne ERP Sync popup ONCE, right before the Quality
-        // Control menu becomes usable. After that the menu runs with the
-        // selected unit bound so QC results write back to the ERP Kanban.
         Loaded += OnLoaded;
+        Unloaded += (_, _) => _gateOpen = false;
     }
 
+    /// <summary>
+    /// Shows the "Hubungkan ke ERP" popup EVERY time the Quality Control menu
+    /// is entered. The page is a singleton, but it is detached when the user
+    /// navigates away, so Loaded fires again on each re-entry.
+    ///
+    /// The popup always offers "Tanpa ERP", so this never blocks the QC menu.
+    /// </summary>
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (_erpGateShown)
+        // Loaded can fire more than once for the same visual tree attachment
+        // (e.g. when the page template is re-applied). Guard so the user never
+        // gets two stacked ERP popups.
+        if (_gateOpen)
         {
             return;
         }
 
-        _erpGateShown = true;
+        _gateOpen = true;
 
         // Defer until the page is fully rendered so the modal popup has an owner.
         Dispatcher.BeginInvoke(new System.Action(ShowErpSyncGate), System.Windows.Threading.DispatcherPriority.ContextIdle);
@@ -41,8 +48,9 @@ public partial class QualityControlPage : Page
         try
         {
             var owner = Window.GetWindow(this);
-            var result = QcErpSyncWindow.Show(_viewModel.ErpSyncService, owner);
-            _viewModel.ApplyErpConnection(result.unit, result.poNumber, result.connected, result.tester, result.testerName);
+            var current = _viewModel.CurrentErpConnection;
+            var result = QcErpSyncWindow.Show(_viewModel.ErpSyncService, owner, current);
+            _viewModel.ApplyErpConnection(result);
         }
         catch
         {

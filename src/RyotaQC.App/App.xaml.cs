@@ -1,5 +1,6 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using RyotaQC.App.Models;
 using RyotaQC.App.Services;
 using RyotaQC.App.ViewModels;
 using RyotaQC.App.ViewModels.Pages;
@@ -132,57 +133,139 @@ public partial class App : Application
             await Task.Delay(5000);
 
             var updateService = Services.GetRequiredService<IAppUpdateService>();
-            var update = await updateService.CheckForUpdateAsync();
 
-            // If the previous update did not actually change the installed
-            // version, tell the user instead of letting it pass silently - the
-            // main menu would otherwise keep showing the old version with no
-            // explanation.
-            var pendingWarning = AppUpdateService.ConsumePendingUpdateWarning();
-            if (!string.IsNullOrWhiteSpace(pendingWarning))
+            // 1. Report how the previous install attempt ended. The result is
+            //    read from the version actually present on disk, so an update
+            //    that never landed can no longer pass silently.
+            var outcome = updateService.ConsumeInstallOutcome();
+            if (outcome is not null)
             {
-                Dispatcher.Invoke(() => MessageBox.Show(
-                    pendingWarning,
-                    "Update Tidak Terpasang",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning));
-            }
-
-            if (update is null)
-            {
-                return;
+                ReportInstallOutcome(outcome);
             }
 
             var current = updateService.GetCurrentVersion();
-            if (!update.IsNewerThan(current))
+
+            // 2. A download that is already waiting for install comes first: it
+            //    works offline and lets the user finish what was downloaded.
+            var ready = updateService.GetReadyUpdate();
+            if (ready is not null)
+            {
+                ShowUpdateWindow(updateService, new AppUpdateInfo
+                {
+                    Version = ready.Target,
+                    DownloadUrl = ready.InstallerPath,
+                    DownloadFileName = ready.AssetName,
+                    ReleaseUrl = ready.ReleaseUrl,
+                    ReleaseNotes = ready.ReleaseNotes
+                }, current);
+                return;
+            }
+
+            // 3. Normal remote check.
+            var update = await updateService.CheckForUpdateAsync();
+            if (update is null || !update.IsNewerThan(current))
             {
                 return;
             }
 
-            // Surface the update prompt on the UI thread. MANDATORY: this is
-            // a modal dialog (ShowDialog) — the user cannot use the app
-            // until the update is applied.
-            Dispatcher.Invoke(() =>
-            {
-                try
-                {
-                    var window = new Views.Windows.UpdateWindow(updateService, update, current)
-                    {
-                        Owner = MainWindow
-                    };
-                    // Modal: blocks the main window until the update completes.
-                    window.ShowDialog();
-                }
-                catch
-                {
-                    // Showing the window is best-effort; never crash on it.
-                }
-            });
+            ShowUpdateWindow(updateService, update, current);
         }
         catch
         {
             // Update check is purely advisory. Any failure should be silent.
         }
+    }
+
+    private void ShowUpdateWindow(IAppUpdateService updateService, AppUpdateInfo update, Version current)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            try
+            {
+                if (MainWindow is null)
+                {
+                    return;
+                }
+
+                var window = new Views.Windows.UpdateWindow(updateService, update, current)
+                {
+                    Owner = MainWindow
+                };
+
+                // Modal, but closable: "Nanti" lets the user keep working on
+                // the current version and the prompt returns on next launch.
+                window.ShowDialog();
+            }
+            catch
+            {
+                // Showing the window is best-effort; never crash on it.
+            }
+        });
+    }
+
+    private void ReportInstallOutcome(InstallOutcome outcome)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (outcome.Success)
+            {
+                var answer = MessageBox.Show(
+                    "Update berhasil dipasang." + Environment.NewLine + Environment.NewLine +
+                    $"Aplikasi sudah versi {outcome.FormattedTarget}." + Environment.NewLine + Environment.NewLine +
+                    "Restart aplikasi sekarang?" + Environment.NewLine +
+                    "Ya = aplikasi ditutup lalu dibuka otomatis." + Environment.NewLine +
+                    "Tidak = lanjutkan memakai aplikasi (sudah versi terbaru).",
+                    "Update Berhasil",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (answer == MessageBoxResult.Yes)
+                {
+                    RestartApplication();
+                }
+
+                return;
+            }
+
+            var installed = string.IsNullOrWhiteSpace(outcome.InstalledVersion)
+                ? "tidak terbaca"
+                : outcome.InstalledVersion;
+
+            MessageBox.Show(
+                $"Update {outcome.FormattedTarget} gagal dipasang." + Environment.NewLine + Environment.NewLine +
+                $"Kode keluar installer : {outcome.ExitCode}" + Environment.NewLine +
+                $"Versi terpasang       : {installed}" + Environment.NewLine + Environment.NewLine +
+                "Aplikasi masih memakai versi sekarang. File update yang sudah diunduh tetap tersimpan, " +
+                "jadi bisa dicoba lagi tanpa mengunduh ulang." + Environment.NewLine + Environment.NewLine +
+                "File log untuk pengembang:" + Environment.NewLine +
+                outcome.InstallerLogPath,
+                "Update Gagal",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        });
+    }
+
+    private void RestartApplication()
+    {
+        try
+        {
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrWhiteSpace(exePath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+            }
+        }
+        catch
+        {
+            // If relaunching fails the user can still open the app manually.
+        }
+
+        Application.Current.Shutdown();
+        Environment.Exit(0);
     }
 
     private static ServiceProvider ConfigureServices()

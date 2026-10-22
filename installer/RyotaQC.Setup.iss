@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.7"
+  #define AppVersion "5.0.8"
 #endif
 
 #define AppName "RyotaQC V5"
@@ -124,17 +124,21 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
 
 [Run]
-; Launch the (new) app after install. NOTE: no 'skipifsilent' flag - the
-; app's self-updater runs the installer with /SILENT and relies on this
-; entry to relaunch the NEW version automatically. 'runasoriginaluser'
+; Launch the (new) app after a normal (wizard) install. 'runasoriginaluser'
 ; keeps the app running as the normal user even though Setup itself was
 ; elevated.
 ;
-; 'nowait' so the installer exits immediately; 'postinstall' so it runs
-; after all files are copied. This is the ONLY relaunch path
-; (RestartApplications is disabled above) so the version you see is
+; 'skipifsilent' is REQUIRED since v5.0.8: when the app's updater runs Setup
+; with /SILENT, the elevated helper script is responsible for relaunching the
+; app - and only AFTER it has recorded the install result. Without
+; 'skipifsilent' Setup would start the app while the helper is still writing
+; install-result.json, and the app could read a stale/absent result.
+;
+; 'nowait' so the installer exits immediately; 'postinstall' so it runs after
+; all files are copied. For silent updates the helper is the only relaunch
+; path (RestartApplications is disabled above), so the version you see is
 ; always the freshly installed one.
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall runasoriginaluser
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall runasoriginaluser skipifsilent
 
 [CustomMessages]
 english.WelcomeLabel1=Welcome to RyotaQC V5 Setup

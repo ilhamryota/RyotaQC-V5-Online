@@ -20,6 +20,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RyotaQC.App.Enums;
+using RyotaQC.App.Models;
 using RyotaQC.App.Services;
 
 namespace RyotaQC.App.ViewModels.Pages;
@@ -91,6 +92,23 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     [ObservableProperty]
     private System.Windows.Media.Brush erpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGray;
 
+    // ===== Connection badge (shown at the top of the QC screen) =====
+    [ObservableProperty]
+    private string erpBadgeText = "TANPA ERP";
+
+    /// <summary>"po" when connected via No PO, "unit" for unit-only, empty otherwise.</summary>
+    [ObservableProperty]
+    private string connectionMode = string.Empty;
+
+    [ObservableProperty]
+    private System.Windows.Media.Brush erpBadgeBackgroundBrush = System.Windows.Media.Brushes.Transparent;
+
+    [ObservableProperty]
+    private System.Windows.Media.Brush erpBadgeBorderBrush = System.Windows.Media.Brushes.Transparent;
+
+    [ObservableProperty]
+    private System.Windows.Media.Brush erpBadgeForegroundBrush = System.Windows.Media.Brushes.LightGray;
+
     // ===== NEW: PO-based workflow =====
     [ObservableProperty]
     private string poNumber = string.Empty;
@@ -150,41 +168,82 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     public IErpSyncService ErpSyncService => _erpSyncService;
 
     /// <summary>
-    /// Called after the user picks a unit in the pre-menu ERP Sync popup.
-    /// Binds the QC session to that unit and enables "Kirim ke ERP".
+    /// Called after the user answers the "Hubungkan ke ERP" popup. Binds the QC
+    /// session to the chosen unit (or runs without ERP) and refreshes the
+    /// connection badge shown at the top of the Quality Control screen.
     /// </summary>
-    public void ApplyErpConnection(PoUnitItem? unit, string poNumber, bool connected, TesterInfo? tester = null, string? testerName = null)
+    public void ApplyErpConnection(QcErpConnection connection)
     {
-        if (tester is not null)
+        connection ??= QcErpConnection.None;
+
+        SelectedTester = connection.Tester;
+        if (SelectedTester is null && !string.IsNullOrWhiteSpace(connection.TesterName))
         {
-            SelectedTester = tester;
-        }
-        else if (!string.IsNullOrWhiteSpace(testerName))
-        {
-            SelectedTester = new TesterInfo { Id = testerName, Name = testerName };
+            SelectedTester = new TesterInfo { Id = connection.TesterName, Name = connection.TesterName };
         }
 
-        if (unit is null)
+        ConnectionMode = connection.Mode;
+        ErpBadgeText = connection.BadgeText;
+        IsConnected = connection.Connected && connection.Unit is not null;
+
+        if (!IsConnected || connection.Unit is null)
         {
-            // Skipped: no ERP binding. QC can still be run locally.
-            IsConnected = false;
-            if (SelectedTester is not null)
-            {
-                ErpSyncStatus = $"Tester: {SelectedTester.Name}. Belum terhubung ke unit ERP.";
-            }
+            // Chose "Tanpa ERP": QC still works, results stay local.
+            SelectedUnit = null;
+            PoNumber = string.Empty;
+            PraQcCode = string.Empty;
+            ErpUnitDetails = string.Empty;
+            HasErpUnitDetails = false;
+            ErpSyncStatus = SelectedTester is not null
+                ? $"Tester: {SelectedTester.Name}. Belum terhubung ke unit ERP."
+                : "Belum terhubung ke unit ERP.";
+            ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGray;
+            ApplyBadgeStyle(connected: false);
             return;
         }
 
-        PoNumber = poNumber ?? string.Empty;
-        PraQcCode = unit.PraQcCode;
-        SelectedUnit = unit;
-        ErpUnitDetails = $"Unit: {unit.ProductName} ({unit.Brand})\n" +
-                         $"Kode: {unit.InternalId} | Status: {unit.Status}";
+        PoNumber = connection.PoNumber ?? string.Empty;
+        PraQcCode = connection.Unit.PraQcCode;
+        SelectedUnit = connection.Unit;
+        ErpUnitDetails = $"Unit: {connection.Unit.ProductName} ({connection.Unit.Brand})\n" +
+                         $"Kode: {connection.Unit.InternalId} | Status: {connection.Unit.Status}";
         HasErpUnitDetails = true;
-        IsConnected = connected;
-        ErpSyncStatus = $"Terhubung ke unit ERP {unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini.";
+        ErpSyncStatus = $"Terhubung ke unit ERP {connection.Unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini.";
         ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
+        ApplyBadgeStyle(connected: true);
     }
+
+    /// <summary>
+    /// Snapshot of the current binding, handed back to the popup so a repeat
+    /// visit can offer "Lanjutkan" instead of forcing a new selection.
+    /// </summary>
+    public QcErpConnection CurrentErpConnection => new()
+    {
+        Unit = IsConnected ? SelectedUnit : null,
+        PoNumber = PoNumber,
+        Connected = IsConnected,
+        Tester = SelectedTester,
+        TesterName = SelectedTester?.Name ?? string.Empty,
+        Mode = ConnectionMode
+    };
+
+    private void ApplyBadgeStyle(bool connected)
+    {        if (connected)
+        {
+            ErpBadgeBackgroundBrush = Brush("#2226A35A");
+            ErpBadgeBorderBrush = Brush("#8826A35A");
+            ErpBadgeForegroundBrush = Brush("#7BE3A2");
+        }
+        else
+        {
+            ErpBadgeBackgroundBrush = Brush("#221F293B");
+            ErpBadgeBorderBrush = Brush("#551E293B");
+            ErpBadgeForegroundBrush = Brush("#98A6BC");
+        }
+    }
+
+    private static System.Windows.Media.Brush Brush(string hex) =>
+        (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
 
     partial void OnIsSyncingErpChanged(bool value) => SyncToErpCommand.NotifyCanExecuteChanged();
 
@@ -202,7 +261,9 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     partial void OnIsConnectedChanged(bool value)
     {
         SyncToErpCommand.NotifyCanExecuteChanged();
-        ErpSyncStatus = value ? "Terhubung ke unit ERP" : string.Empty;
+
+        // Status text is authored by ApplyErpConnection (it names the unit).
+        // Only the colour is derived here.
         ErpSyncStatusColorBrush = value
             ? System.Windows.Media.Brushes.LightGreen
             : System.Windows.Media.Brushes.LightGray;
