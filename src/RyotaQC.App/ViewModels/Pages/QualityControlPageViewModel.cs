@@ -45,8 +45,10 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     private string _cachedSystemManufacturer = string.Empty;
 
     private int? _batteryHealthPercent;
+    private int? _batteryHealth2Percent;
     private string _batteryHealthNote = string.Empty;
     private int? _storageHealthPercent;
+    private int? _batteryLifetimeMinutes;
     private PortCheckResult? _lastPortResult;
     private bool _touchpadOk;
     private bool _wifiOk;
@@ -141,6 +143,49 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
     public IAsyncRelayCommand ConnectCommand { get; }
 
+    /// <summary>
+    /// Exposes the ERP sync service so the page can show the pre-menu
+    /// EsteraOne ERP Sync popup (which lives in Views.Windows).
+    /// </summary>
+    public IErpSyncService ErpSyncService => _erpSyncService;
+
+    /// <summary>
+    /// Called after the user picks a unit in the pre-menu ERP Sync popup.
+    /// Binds the QC session to that unit and enables "Kirim ke ERP".
+    /// </summary>
+    public void ApplyErpConnection(PoUnitItem? unit, string poNumber, bool connected, TesterInfo? tester = null, string? testerName = null)
+    {
+        if (tester is not null)
+        {
+            SelectedTester = tester;
+        }
+        else if (!string.IsNullOrWhiteSpace(testerName))
+        {
+            SelectedTester = new TesterInfo { Id = testerName, Name = testerName };
+        }
+
+        if (unit is null)
+        {
+            // Skipped: no ERP binding. QC can still be run locally.
+            IsConnected = false;
+            if (SelectedTester is not null)
+            {
+                ErpSyncStatus = $"Tester: {SelectedTester.Name}. Belum terhubung ke unit ERP.";
+            }
+            return;
+        }
+
+        PoNumber = poNumber ?? string.Empty;
+        PraQcCode = unit.PraQcCode;
+        SelectedUnit = unit;
+        ErpUnitDetails = $"Unit: {unit.ProductName} ({unit.Brand})\n" +
+                         $"Kode: {unit.InternalId} | Status: {unit.Status}";
+        HasErpUnitDetails = true;
+        IsConnected = connected;
+        ErpSyncStatus = $"Terhubung ke unit ERP {unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini.";
+        ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
+    }
+
     partial void OnIsSyncingErpChanged(bool value) => SyncToErpCommand.NotifyCanExecuteChanged();
 
     partial void OnSelectedUnitChanged(PoUnitItem? value)
@@ -219,7 +264,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
         BuildChecklistItems();
         OnPropertyChanged(nameof(BenchmarkChecklistItem));
-        OnPropertyChanged(nameof(RunningTestChecklistItem));
         BuildBenchmarkOptions();
         RefreshData();
     }
@@ -232,9 +276,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
     public QcChecklistItem? BenchmarkChecklistItem =>
         ChecklistItems.FirstOrDefault(x => x.Kind == QcChecklistKind.Benchmark);
-
-    public QcChecklistItem? RunningTestChecklistItem =>
-        ChecklistItems.FirstOrDefault(x => x.Kind == QcChecklistKind.RunningTest);
 
     public IRelayCommand RefreshCommand { get; }
 
@@ -277,7 +318,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         AddItem("Keyboard Test", QcChecklistKind.KeyboardTest, "Uji penekanan semua tombol keyboard.", "keyboard-test.png");
         AddItem("Audio Test", QcChecklistKind.AudioTest, "Audio 1/2 normal dan Left/Right channel.", "audio-test.png");
         AddItem("Benchmark", QcChecklistKind.Benchmark, "Jalankan benchmark yang dipilih.", "benchmark.png");
-        AddItem("Running Test", QcChecklistKind.RunningTest, "Jalankan VLC dengan RT.mp4 dan log battery ke Desktop.", "battery-test.png");
         AddItem("Camera", QcChecklistKind.Camera, "Buka aplikasi Camera Windows.", "camera-test.png");
         AddItem("Touchscreen Test", QcChecklistKind.TouchscreenTest, "Uji sentuhan layar.", "touchscreen-test.png");
         AddItem("Port Test", QcChecklistKind.PortTest, "Cek USB, audio jack, charger.", "port-test.png");
@@ -301,7 +341,8 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         item.RunCommand = new AsyncRelayCommand(() => RunItemAsync(item), () => !item.IsRunning);
         item.PropertyChanged += ItemOnPropertyChanged;
         ChecklistItems.Add(item);
-        if (kind is not QcChecklistKind.Benchmark and not QcChecklistKind.RunningTest)
+        // Benchmark is exposed through the dedicated benchmark selector, not the list.
+        if (kind is not QcChecklistKind.Benchmark)
         {
             DisplayChecklistItems.Add(item);
         }
@@ -423,17 +464,24 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 case QcChecklistKind.StorageHealth:
                     _runner.RunSentinel();
                     item.InfoText = "Hard Disk Sentinel dibuka. Baca nilai Health lalu input di popup.";
-                    // Show manual input popup for the health percentage
+                    // Capture the submitted health percentage, then ask for the verdict.
                     var healthPercent = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         Views.Windows.QcNumberInputPopupWindow.Show(
-                            "SSD Health",
+                            "Storage Health",
                             "Masukkan nilai Health dari Hard Disk Sentinel:"));
 
                     if (healthPercent >= 0)
                     {
                         _storageHealthPercent = healthPercent;
-                        item.SetPercentageResult(healthPercent);
                         item.InfoText = $"Storage Health: {healthPercent}%";
+
+                        // Verdict popup: OK Pass / - Optional / X Fail (fail requires a note).
+                        var verdict = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            Views.Windows.QcHealthVerdictPopupWindow.Show(
+                                "Storage Health - Hasil:",
+                                $"{healthPercent}%",
+                                "70% - 100% = Pass · di bawah 70% = Fail"));
+                        await ApplyHealthVerdictAsync(item, verdict, healthPercent);
                     }
                     else
                     {
@@ -445,11 +493,30 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 case QcChecklistKind.BatteryHealth:
                     _runner.RunBatteryHealth();
                     await Task.Delay(900);
-                    _batteryHealthPercent = await TryReadBatteryHealthPercentAsync();
-                    if (_batteryHealthPercent.HasValue && _batteryHealthPercent.Value > 0)
+
+                    // Capture Battery Health 1 (mandatory) + Battery Health 2 (optional).
+                    var detectedHealth = await TryReadBatteryHealthPercentAsync();
+                    var (bh1, bh2) = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        Views.Windows.QcDualBatteryPopupWindow.Show(
+                            "Battery Health",
+                            "Masukkan nilai Battery Health dari battery report:",
+                            detectedHealth));
+
+                    if (bh1 > 0)
                     {
-                        item.SetPercentageResult(_batteryHealthPercent.Value);
-                        item.InfoText = $"Battery Health: {_batteryHealthPercent.Value}%";
+                        _batteryHealthPercent = bh1;
+                        _batteryHealth2Percent = bh2 > 0 ? bh2 : null;
+                        item.InfoText = bh2 > 0
+                            ? $"Battery Health: {bh1}% / {bh2}% (dual battery)"
+                            : $"Battery Health: {bh1}%";
+
+                        var verdictLabel = bh2 > 0 ? $"{bh1}% / {bh2}%" : $"{bh1}%";
+                        var verdict = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            Views.Windows.QcHealthVerdictPopupWindow.Show(
+                                "Battery Health - Hasil:",
+                                verdictLabel,
+                                "70% - 100% = Pass · di bawah 70% = Fail"));
+                        await ApplyHealthVerdictAsync(item, verdict, bh1, bh2 > 0 ? bh2 : (int?)null);
                     }
                     else
                     {
@@ -461,7 +528,7 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 case QcChecklistKind.BatteryTest:
                     await _runner.RunBatteryReportAsync();
                     item.InfoText = "Battery Report dijalankan.";
-                    // Show result popup (OK/X/-) then time input
+                    // Show result popup (OK/X/-) then capture the duration (jam + menit).
                     var batResult = Views.Windows.QcResultPopupWindow.Show(
                         "Battery Report - Hasil:",
                         "Battery Report sudah terbuka. Apakah hasil OK?");
@@ -469,14 +536,21 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                     {
                         var (timeText, totalMin) = Views.Windows.QcTimeInputPopupWindow.Show(
                             "Berapa lama hasil test?",
-                            "Masukkan durasi hasil battery report:");
+                            "Masukkan durasi hasil battery report (jam & menit):");
                         if (!string.IsNullOrEmpty(timeText))
                         {
+                            _batteryLifetimeMinutes = totalMin;
                             item.ResultLabel = timeText;
                             item.ResultStatus = totalMin >= 60 ? "PASS" : "FAIL";
                             item.ResultColor = totalMin >= 60 ? "#FF1E7A4B" : "#FFB91C1C";
                             item.HasResult = true;
                             item.InfoText = $"Battery Report: {timeText}";
+                            if (batResult == Views.Windows.QcResultPopupWindow.QcResult.Fail)
+                            {
+                                var note = Views.Windows.QcNotePopupWindow.Show(
+                                    "Catatan: Mengapa Battery Report gagal (X)?");
+                                item.ResultNote = note;
+                            }
                         }
                         else
                         {
@@ -506,53 +580,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                         : "Benchmark belum dipilih.";
                     await ShowResultPopupAsync(item, "Benchmark - Hasil:",
                         "Benchmark sudah dijalankan. Apakah hasil OK?");
-                    break;
-
-                case QcChecklistKind.RunningTest:
-                    _runner.RunRunningTest();
-                    item.InfoText = "Running Test dibuka di VLC. Menunggu video tampil...";
-                    // Wait for VLC to start playing the video
-                    await Task.Delay(5000);
-                    // Show result popup asking if video is playing
-                    var rtResult = Views.Windows.QcResultPopupWindow.Show(
-                        "Running Test - Hasil:",
-                        "Video Running Test sudah tampil? Apakah hasil OK?");
-                    if (rtResult != Views.Windows.QcResultPopupWindow.QcResult.None)
-                    {
-                        // Show time input popup for duration
-                        var (rtTime, rtMin) = Views.Windows.QcTimeInputPopupWindow.Show(
-                            "Running Test - Durasi:",
-                            "Masukkan durasi running test (VLC video):",
-                            redBelowMinutes: 120,
-                            yellowBelowMinutes: 180,
-                            greenBelowMinutes: 240);
-                        if (!string.IsNullOrEmpty(rtTime))
-                        {
-                            item.ResultLabel = rtTime;
-                            if (rtMin < 120)
-                            {
-                                item.ResultColor = "#FFB91C1C";
-                                item.ResultStatus = "FAIL";
-                            }
-                            else if (rtMin < 240)
-                            {
-                                item.ResultColor = "#FFE0A800";
-                                item.ResultStatus = "SKIP";
-                            }
-                            else
-                            {
-                                item.ResultColor = "#FF1E7A4B";
-                                item.ResultStatus = "PASS";
-                            }
-                            item.HasResult = true;
-                            item.InfoText = $"Running Test: {rtTime}";
-                        }
-                        else
-                        {
-                            item.SetResult(rtResult);
-                            item.InfoText = "Running Test selesai.";
-                        }
-                    }
                     break;
 
                 case QcChecklistKind.Camera:
@@ -661,6 +688,39 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         });
     }
 
+    /// <summary>
+    /// Applies a health-verdict choice (OK / - / X) to a checklist item.
+    /// On Fail, the user must supply a reason note that is sent to the ERP.
+    /// The numeric health value is always stored so the ERP Kanban reflects it.
+    /// </summary>
+    private async Task ApplyHealthVerdictAsync(
+        QcChecklistItem item,
+        Views.Windows.QcResultPopupWindow.QcResult verdict,
+        int health1,
+        int? health2 = null)
+    {
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            switch (verdict)
+            {
+                case Views.Windows.QcResultPopupWindow.QcResult.Pass:
+                    item.SetResult(verdict);
+                    item.ResultLabel = health2.HasValue ? $"{health1}% / {health2}% OK" : $"{health1}% OK";
+                    break;
+                case Views.Windows.QcResultPopupWindow.QcResult.Skip:
+                    item.SetResult(verdict);
+                    item.ResultLabel = health2.HasValue ? $"{health1}% / {health2}%" : $"{health1}%";
+                    break;
+                case Views.Windows.QcResultPopupWindow.QcResult.Fail:
+                    var note = Views.Windows.QcNotePopupWindow.Show(
+                        $"Catatan: Mengapa {item.Name} gagal (X)?");
+                    item.SetResult(verdict, note);
+                    item.ResultLabel = health2.HasValue ? $"{health1}% / {health2}% X" : $"{health1}% X";
+                    break;
+            }
+        });
+    }
+
     private void UpdateAllStatuses()
     {
         foreach (var item in ChecklistItems)
@@ -688,9 +748,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 item.StatusText = _batteryHealthPercent.HasValue ? $"{_batteryHealthPercent.Value}%" : "PENDING";
                 break;
             case QcChecklistKind.BatteryTest:
-                item.StatusText = "OK";
-                break;
-            case QcChecklistKind.RunningTest:
                 item.StatusText = "OK";
                 break;
             case QcChecklistKind.PortTest:
@@ -783,7 +840,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             QcChecklistKind.KeyboardTest,
             QcChecklistKind.AudioTest,
             QcChecklistKind.Benchmark,
-            QcChecklistKind.RunningTest,
             QcChecklistKind.Camera,
             QcChecklistKind.TouchscreenTest,
             QcChecklistKind.PortTest,
@@ -834,7 +890,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             $"Keyboard = {R(QcChecklistKind.KeyboardTest)}",
             $"Audio = {R(QcChecklistKind.AudioTest)}",
             $"Benchmark = {R(QcChecklistKind.Benchmark)}",
-            $"Running Test = {R(QcChecklistKind.RunningTest)}",
             $"Camera = {R(QcChecklistKind.Camera)}",
             $"Touchscreen = {R(QcChecklistKind.TouchscreenTest)}",
             $"Port = {R(QcChecklistKind.PortTest)}",
@@ -2146,7 +2201,6 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             ("Keyboard", GetChecklistStatus(QcChecklistKind.KeyboardTest), GetChecklistNote(QcChecklistKind.KeyboardTest)),
             ("Audio", GetChecklistStatus(QcChecklistKind.AudioTest), GetChecklistNote(QcChecklistKind.AudioTest)),
             ("Benchmark", GetChecklistStatus(QcChecklistKind.Benchmark), GetChecklistNote(QcChecklistKind.Benchmark)),
-            ("Running Test", GetChecklistStatus(QcChecklistKind.RunningTest), GetChecklistNote(QcChecklistKind.RunningTest)),
             ("Touchscreen", GetChecklistStatus(QcChecklistKind.TouchscreenTest), GetChecklistNote(QcChecklistKind.TouchscreenTest)),
             ("Port", GetChecklistStatus(QcChecklistKind.PortTest), GetChecklistNote(QcChecklistKind.PortTest)),
             ("Touchpad", GetChecklistStatus(QcChecklistKind.Touchpad), GetChecklistNote(QcChecklistKind.Touchpad)),
@@ -2255,6 +2309,52 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             return string.Empty;
         }
         return item.ResultNote ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Computes the overall QC status from the mapped ERP tests + numeric tests,
+    /// mirroring the ERP rule set: any mandatory FAIL → FAIL, any ISSUE → ISSUE,
+    /// numeric health below 70 → FAIL, otherwise PASS.
+    /// </summary>
+    private static string ComputeOverallStatus(
+        Dictionary<string, object> tests,
+        Dictionary<string, object> numericTests)
+    {
+        string StatusOf(string key) =>
+            tests.TryGetValue(key, out var v) && v is QcErpMapper.ErpTestValue t
+                ? t.Status
+                : string.Empty;
+
+        var mandatory = new[]
+        {
+            "lcdTest", "wifiTest", "keyboard", "camera",
+            "microphone", "audioSpeaker", "port", "touchpad", "stressTest"
+        };
+
+        foreach (var key in mandatory)
+        {
+            if (StatusOf(key) == "FAIL")
+            {
+                return "FAIL";
+            }
+        }
+
+        if (tests.Values.OfType<QcErpMapper.ErpTestValue>().Any(t => t.Status == "ISSUE"))
+        {
+            return "ISSUE";
+        }
+
+        if (numericTests.TryGetValue("hddSsdHealth", out var sh) && sh is int shv && shv < 70)
+        {
+            return "FAIL";
+        }
+
+        if (numericTests.TryGetValue("batteryHealth", out var bh) && bh is int bhv && bhv < 70)
+        {
+            return "FAIL";
+        }
+
+        return "PASS";
     }
 
     private static string NormalizeReportStatus(string? status)
@@ -2420,25 +2520,24 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 }
             }
 
-            // 3. Kumpulkan hasil parameter checklist
-            var tests = new Dictionary<string, object>();
-            bool allPassed = true;
-            foreach (var item in ChecklistItems)
-            {
-                var status = item.IsChecked ? "PASS" : "FAIL";
-                tests[item.Kind.ToString().ToLowerInvariant()] = new
-                {
-                    title = item.Title,
-                    status = status,
-                    notes = item.Subtitle
-                };
-                if (!item.IsChecked)
-                {
-                    allPassed = false;
-                }
-            }
+            // 3. Kumpulkan hasil parameter checklist dalam format ERP Kanban
+            //    (qcData.tests + qcData.numericTests) via QcErpMapper.
+            var mapperItems = ChecklistItems
+                .Select(i => (i.Kind.ToString(), i.HasResult, i.ResultStatus, i.ResultNote, i.InfoText))
+                .ToList();
 
-            // 4. Bangun payload dengan QcStatus + TesterId
+            var tests = QcErpMapper.BuildTests(mapperItems);
+            var numericTests = QcErpMapper.BuildNumericTests(
+                _storageHealthPercent,
+                _batteryHealthPercent,
+                _batteryHealth2Percent,
+                _batteryLifetimeMinutes);
+
+            // Overall status from the mapped ERP tests + numeric thresholds.
+            var overallStatus = ComputeOverallStatus(tests, numericTests);
+            var allPassed = overallStatus == "PASS";
+
+            // 4. Bangun payload ERP (qcData.tests + numericTests) dengan QcStatus + TesterId
             var payload = new ErpQcPayload
             {
                 PraQcCode = PraQcCode.Trim(),
@@ -2447,10 +2546,13 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 Model = _cachedSystemModel,
                 Specs = specs,
                 BatteryHealth = _batteryHealthPercent,
+                BatteryHealth2 = _batteryHealth2Percent,
                 StorageHealth = _storageHealthPercent,
+                BatteryLifetimeMinutes = _batteryLifetimeMinutes,
                 Status = allPassed ? "PASS" : "FAIL",
                 QcStatus = string.IsNullOrWhiteSpace(QcStatus) ? "LULUS" : QcStatus.ToUpperInvariant(),
                 Tests = tests,
+                NumericTests = numericTests,
                 TestedBy = SelectedTester?.Name ?? sysInfo.UserName ?? "Teknisi QC",
                 TesterId = SelectedTester?.Id,
                 Notes = string.Empty
@@ -2489,25 +2591,57 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Split storage detail menjadi HDD vs SSD.
-    /// Contoh input: "Samsung SSD 512GB / Seagate HDD 1TB"
+    /// Split storage detail menjadi HDD vs SSD berdasarkan interface.
+    /// Aturan: NVMe / M.2 NVMe / SSD → SSD; HDD / M.2 SATA / SATA (I/II/III) → HDD.
+    /// Jika hanya terbaca SSD NVMe saja, kolom HDD dikosongkan.
+    /// Contoh input: "SSD M.2 NVMe — 238 GB" atau "HDD SATA III — 500 GB"
     /// </summary>
     private static (string hdd, string ssd) SplitStorageHddSsd(string storageDetail)
     {
         if (string.IsNullOrWhiteSpace(storageDetail)) return (string.Empty, string.Empty);
 
-        var parts = storageDetail.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = storageDetail.Split(
+            new[] { '/', '\n', '\r' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         string hdd = string.Empty, ssd = string.Empty;
 
         foreach (var p in parts)
         {
-            if (p.Contains("HDD", StringComparison.OrdinalIgnoreCase) && !p.Contains("SSD", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(p)) continue;
+
+            var lower = p.ToLowerInvariant();
+
+            // SATA-family / rotational / hard-disk signals → HDD (Hardisk column).
+            var isHddFamily =
+                lower.Contains("m.2 sata") || lower.Contains("m2 sata") || lower.Contains("ngff")
+                || lower.Contains("sata ii") || lower.Contains("sata iii") || lower.Contains("sata3")
+                || lower.Contains("sata2")
+                || lower.Contains("hdd") || lower.Contains("hard disk") || lower.Contains("harddisk")
+                || lower.Contains("7200rpm") || lower.Contains("5400rpm");
+
+            // Solid-state signals → SSD column.
+            var isSsdFamily =
+                lower.Contains("nvme") || lower.Contains("ssd") || lower.Contains("solid state");
+
+            if (isHddFamily)
             {
                 hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
             }
-            else if (p.Contains("SSD", StringComparison.OrdinalIgnoreCase))
+            else if (isSsdFamily)
             {
                 ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
+            }
+            else
+            {
+                // Unknown disk: if it has a SATA interface treat as HDD, else SSD.
+                if (lower.Contains("sata"))
+                {
+                    hdd = string.IsNullOrEmpty(hdd) ? p : $"{hdd}; {p}";
+                }
+                else
+                {
+                    ssd = string.IsNullOrEmpty(ssd) ? p : $"{ssd}; {p}";
+                }
             }
         }
 

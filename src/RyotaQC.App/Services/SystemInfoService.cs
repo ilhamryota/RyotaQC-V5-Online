@@ -315,8 +315,9 @@ public sealed class SystemInfoService : ISystemInfoService
             var lines = disks
                 .Select(disk =>
                 {
-                    var model = disk["Model"]?.ToString() ?? "Disk";
                     var size = FormatGb(ParseUlong(disk["Size"]), 0);
+                    // Media type + connection are interface-aware: NVMe / M.2 NVMe / SSD
+                    // are treated as SSD, while HDD / M.2 SATA / SATA (II/III) are HDD.
                     var mediaType = ResolveSimpleMediaType(disk);
                     var connection = ResolveSimpleConnection(disk);
                     return $"{mediaType} {connection} — {size} GB";
@@ -332,20 +333,34 @@ public sealed class SystemInfoService : ISystemInfoService
         }
     }
 
+    /// <summary>
+    /// Returns the storage family for a physical disk based on interface and media type.
+    /// Rules (per QC requirement): NVMe / M.2 NVMe / SSD → "SSD";
+    /// anything on HDD / M.2 SATA / SATA (I/II/III) → "HDD".
+    /// </summary>
     private static string ResolveSimpleMediaType(ManagementObject disk)
     {
         var meta = disk["MediaType"]?.ToString() ?? string.Empty;
         var model = disk["Model"]?.ToString() ?? string.Empty;
-        var raw = $"{model} {meta}".ToLowerInvariant();
+        var pnp = disk["PNPDeviceID"]?.ToString() ?? string.Empty;
+        var iface = disk["InterfaceType"]?.ToString() ?? string.Empty;
+        var raw = $"{model} {meta} {pnp} {iface}".ToLowerInvariant();
 
-        if (raw.Contains("ssd") || raw.Contains("solid state") || raw.Contains("nvme"))
-        {
-            return "SSD";
-        }
-
-        if (raw.Contains("hdd") || raw.Contains("hard disk"))
+        // SATA-family and rotational drives are treated as HDD, even when the
+        // model name claims "SSD" (e.g. M.2 SATA SSDs report MediaType "Fixed hard disk").
+        if (raw.Contains("m.2 sata") || raw.Contains("m2 sata") || raw.Contains("ngff")
+            || raw.Contains("sata ii") || raw.Contains("sata iii") || raw.Contains("sata3")
+            || raw.Contains("sata2") || raw.Contains("sata i ") || raw.Contains("hdd")
+            || raw.Contains("hard disk") || raw.Contains("harddisk")
+            || raw.Contains("7200rpm") || raw.Contains("5400rpm"))
         {
             return "HDD";
+        }
+
+        // NVMe / M.2 NVMe / SSD (any remaining solid-state signal) → SSD.
+        if (raw.Contains("nvme") || raw.Contains("ssd") || raw.Contains("solid state"))
+        {
+            return "SSD";
         }
 
         return "Disk";
@@ -354,12 +369,28 @@ public sealed class SystemInfoService : ISystemInfoService
     private static string ResolveSimpleConnection(ManagementObject disk)
     {
         var pnp = disk["PNPDeviceID"]?.ToString() ?? string.Empty;
+        var model = disk["Model"]?.ToString() ?? string.Empty;
         var iface = disk["InterfaceType"]?.ToString() ?? string.Empty;
-        var raw = $"{pnp} {iface}".ToLowerInvariant();
+        var raw = $"{pnp} {model} {iface}".ToLowerInvariant();
 
         if (raw.Contains("nvme"))
         {
             return "M.2 NVMe";
+        }
+
+        if (raw.Contains("m.2 sata") || raw.Contains("m2 sata") || raw.Contains("ngff"))
+        {
+            return "M.2 SATA";
+        }
+
+        if (raw.Contains("sata iii") || raw.Contains("sata3") || raw.Contains("6gb/s"))
+        {
+            return "SATA III";
+        }
+
+        if (raw.Contains("sata ii") || raw.Contains("sata2") || raw.Contains("3gb/s"))
+        {
+            return "SATA II";
         }
 
         if (raw.Contains("sata"))

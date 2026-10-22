@@ -1,4 +1,4 @@
-<Page x:Class="RyotaQC.App.Views.Pages.QualityControlPage"
+﻿<Page x:Class="RyotaQC.App.Views.Pages.QualityControlPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -129,115 +129,15 @@
                             Margin="0,10,0,6"
                             HorizontalAlignment="Left" />
 
-                    <!-- Integrasi EsteraOne ERP Twenty UI -->
+                    <!-- Koneksi EsteraOne ERP sudah dilakukan di popup awal.
+                         Panel di sini hanya menampilkan unit yang terikat + tombol kirim. -->
                     <Border CornerRadius="8" Background="#FF161F30" BorderBrush="#FF1E293B" BorderThickness="1" Padding="14" Margin="0,10,0,10">
                         <StackPanel>
-                            <TextBlock Text="ESTERAONE ERP SYNC"
+                            <TextBlock Text="ESTERAONE ERP â€” UNIT TERHUBUNG"
                                        FontFamily="Bahnschrift Bold"
                                        FontSize="11"
                                        Foreground="#FF60A5FA"
                                        Margin="0,0,0,6" />
-                            
-                            <TextBlock Text="No PO"
-                                       FontFamily="Bahnschrift SemiBold"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       Margin="0,0,0,4" />
-                            
-                            <Grid Margin="0,0,0,6">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox Text="{Binding PoNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource SearchTextBoxStyle}"
-                                         Height="34"
-                                         FontSize="13"
-                                         VerticalContentAlignment="Center"
-                                         Padding="8,0"
-                                         ToolTip="Ketik No PO dari ERP (e.g. PO-0003)" />
-                                <Button Grid.Column="1"
-                                        Content="Cari"
-                                        Command="{Binding LookupPoUnitsCommand}"
-                                        Style="{StaticResource RoundedActionButtonStyle}"
-                                        Width="60"
-                                        Height="34"
-                                        Margin="6,0,0,0"
-                                        ToolTip="Cari unit-unit pada PO ini" />
-                            </Grid>
-
-                            <!-- Daftar EST codes (po units) -->
-                            <StackPanel Visibility="{Binding HasPoUnits, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                        Margin="0,4,0,8">
-                                <TextBlock Text="PILIH KODE UNIT (EST)"
-                                           FontFamily="Bahnschrift SemiBold"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextMutedBrush}"
-                                           Margin="0,0,0,4" />
-                                <ComboBox ItemsSource="{Binding PoUnits}"
-                                           SelectedItem="{Binding SelectedUnit, Mode=TwoWay}"
-                                           Height="34"
-                                           FontSize="13"
-                                           ToolTip="Pilih unit (Lenovo diprioritaskan di atas)">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding InternalId}" FontWeight="SemiBold" />
-                                                <TextBlock Text=" — " />
-                                                <TextBlock Text="{Binding Brand}" Foreground="#FF60A5FA" />
-                                                <TextBlock Text=" / " />
-                                                <TextBlock Text="{Binding ProductName}" Foreground="{DynamicResource TextMutedBrush}" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                            </StackPanel>
-
-                            <!-- Tester + Hubungkan -->
-                            <Grid Margin="0,4,0,8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <ComboBox Grid.Column="0"
-                                           ItemsSource="{Binding Testers}"
-                                           SelectedItem="{Binding SelectedTester, Mode=TwoWay}"
-                                           Height="34"
-                                           FontSize="13"
-                                           ToolTip="Pilih tester QC (atau daftar baru)">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Name}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-                                <Button Grid.Column="1"
-                                        Content="Tester+"
-                                        Command="{Binding RegisterTesterCommand}"
-                                        Style="{StaticResource RoundedActionButtonStyle}"
-                                        Height="34"
-                                        Margin="6,0,0,0"
-                                        ToolTip="Daftarkan tester baru (isi nama di sebelah kanan)" />
-                                <TextBox Grid.Column="2"
-                                         Text="{Binding TesterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource SearchTextBoxStyle}"
-                                         Width="120"
-                                         Height="34"
-                                         Margin="6,0,0,0"
-                                         FontSize="12"
-                                         VerticalContentAlignment="Center"
-                                         Padding="6,0"
-                                         ToolTip="Nama tester baru" />
-                            </Grid>
-
-                            <Button Content="Hubungkan"
-                                    Command="{Binding ConnectCommand}"
-                                    Style="{StaticResource BigPrimaryButtonStyle}"
-                                    Height="36"
-                                    Margin="0,4,0,8"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Ikat app ini ke unit EST terpilih (tester wajib dipilih)" />
 
                             <Border CornerRadius="6" Background="#FF0B0F17" BorderBrush="#FF1E293B" BorderThickness="1" Padding="8,6" Margin="0,0,0,8"
                                     Visibility="{Binding HasErpUnitDetails, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -246,6 +146,23 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap" />
                             </Border>
+
+                            <TextBlock Text="Belum ada unit terhubung. Hasil QC disimpan lokal."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasErpUnitDetails}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
                             <!-- Status dropdown -->
                             <TextBlock Text="STATUS QC"
@@ -439,61 +356,6 @@
                                            FontFamily="Bahnschrift"
                                            FontSize="14"
                                            Foreground="{DynamicResource TextMutedBrush}" />
-
-                                <Border CornerRadius="6" Background="#FF161F30" BorderBrush="#FF1E293B" BorderThickness="1" Padding="10"
-                                        Margin="0,12,0,0">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <CheckBox IsChecked="{Binding RunningTestChecklistItem.IsChecked, Mode=TwoWay}"
-                                                      VerticalAlignment="Center"
-                                                      Margin="0,0,8,0"
-                                                      Width="20"
-                                                      Height="20" />
-                                            <Image Source="Assets/Images/Icons/QC/battery-test.png"
-                                                   Width="24"
-                                                   Height="24"
-                                                   Margin="0,0,8,0" />
-                                            <TextBlock Text="Running Test"
-                                                       FontFamily="Bahnschrift SemiBold"
-                                                       FontSize="19"
-                                                       Foreground="{DynamicResource TextPrimaryBrush}" />
-                                        </StackPanel>
-
-                                        <Button Grid.Column="1"
-                                                Content="Run"
-                                                Command="{Binding RunningTestChecklistItem.RunCommand}"
-                                                Style="{StaticResource RoundedActionButtonStyle}"
-                                                Width="82"
-                                                Height="34"
-                                                Margin="0,0,8,0" />
-
-                                        <Border Grid.Column="2" Style="{StaticResource QcStatusBadgeStyle}">
-                                            <TextBlock Text="{Binding RunningTestChecklistItem.StatusText}"
-                                                       FontFamily="Bahnschrift SemiBold"
-                                                       FontSize="15"
-                                                       Foreground="#FFDCEBFF" />
-                                        </Border>
-
-                                        <TextBlock Grid.Row="1"
-                                                   Grid.ColumnSpan="3"
-                                                   Text="{Binding RunningTestChecklistItem.InfoText}"
-                                                   Margin="0,7,0,0"
-                                                   FontFamily="Bahnschrift"
-                                                   FontSize="14"
-                                                   Foreground="{DynamicResource TextMutedBrush}"
-                                                   TextWrapping="Wrap" />
-                                    </Grid>
-                                </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>

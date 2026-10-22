@@ -15,7 +15,7 @@
 ; ============================================================================
 
 #ifndef AppVersion
-  #define AppVersion "5.0.3"
+  #define AppVersion "5.0.4"
 #endif
 
 #define AppName "RyotaQC V5"
@@ -88,7 +88,11 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: quicklaunchicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+; Launch the app after install. NOTE: no 'skipifsilent' flag - the app's
+; self-updater runs the installer with /SILENT and relies on this entry to
+; relaunch the new version automatically. 'runasoriginaluser' keeps the app
+; running as the normal user even though Setup itself was elevated.
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall runasoriginaluser
 
 [CustomMessages]
 english.WelcomeLabel1=Welcome to RyotaQC V5 Setup

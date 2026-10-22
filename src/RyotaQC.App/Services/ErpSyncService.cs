@@ -128,10 +128,13 @@ public class ErpQcPayload
     public string Model { get; set; } = string.Empty;
     public ErpSpecs Specs { get; set; } = new();
     public int? BatteryHealth { get; set; }
+    public int? BatteryHealth2 { get; set; }
     public int? StorageHealth { get; set; }
+    public int? BatteryLifetimeMinutes { get; set; }
     public string Status { get; set; } = "PASS";
     public string QcStatus { get; set; } = "LULUS";
     public Dictionary<string, object> Tests { get; set; } = new();
+    public Dictionary<string, object> NumericTests { get; set; } = new();
     public string TestedBy { get; set; } = "Teknisi QC";
     public string? TesterId { get; set; }
     public string Notes { get; set; } = string.Empty;
@@ -164,6 +167,7 @@ public class ErpSyncResponse
 public class ErpUnitInfoResponse
 {
     public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
     public ErpUnitData? Data { get; set; }
 }
 
@@ -171,6 +175,7 @@ public class ErpUnitData
 {
     public string Id { get; set; } = string.Empty;
     public string PraQcCode { get; set; } = string.Empty;
+    public string InternalId { get; set; } = string.Empty;
     public string SerialNumber { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
@@ -205,6 +210,10 @@ public class PoUnitItem
     public string Status { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
+
+    /// <summary>Label used by ComboBox display, e.g. "EST-2610-0003-01 — Lenovo / ThinkPad X395".</summary>
+    public string DisplayText =>
+        $"{InternalId} — {Brand} / {ProductName} [{Status}]";
 }
 
 // ===== Testers response types =====
