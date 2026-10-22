@@ -22,19 +22,23 @@ Dibangun dengan C# + WPF + MVVM · .NET 10 · Auto-update dari GitHub Releases
 > bukan cara install, dan bisa memunculkan error *"This app can't run on your PC"*.
 
 1. Buka halaman **Releases**: https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh **`RyotaQC-V5-Setup-x64-v5.0.6.exe`** dan **`SHA256SUMS.txt`**
+2. Unduh **`RyotaQC-V5-Setup-x64-v5.0.7.exe`** dan **`SHA256SUMS.txt`**
 3. Verifikasi unduhan (wajib — unduhan terpotong adalah penyebab umum error "can't run"):
    ```powershell
-   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.6.exe -Algorithm SHA256
+   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.7.exe -Algorithm SHA256
    ```
    Cocokkan hasilnya dengan baris di `SHA256SUMS.txt`.
 4. Tutup aplikasi RyotaQC bila sedang berjalan
 5. Klik kanan installer → **Run as administrator** → tunggu sampai selesai
-6. Buka aplikasi dan pastikan nomor versi di menu utama sudah **v5.0.6**
+6. Buka aplikasi dan pastikan nomor versi di menu utama sudah **v5.0.7**
 
 > User yang masih di v5.0.2 / v5.0.3 / v5.0.4 / v5.0.5 **wajib** update manual
 > sekali (langkah di atas) — auto-update dari versi-versi itu tidak akan berhasil,
 > karena installer-nya berisi aplikasi versi lama. Detail: `docs\UPDATE_AND_INTEGRATION_GUIDE.md`
+>
+> User yang **sudah di v5.0.6 atau v5.0.7** tidak perlu langkah di atas lagi —
+> cukup buka aplikasi, klik **"Update Sekarang"**, setujui UAC, lalu tunggu
+> aplikasi terbuka kembali sendiri dalam versi terbaru.
 
 ## 4 Menu Utama
 
@@ -91,19 +95,19 @@ folder `publish\` buatan tangan:
 
 ```powershell
 # 1. Publish aplikasi + staging payload ke release\staging\RyotaQC-V5
-powershell -File scripts\01-publish-release.ps1 -Version 5.0.6
+powershell -File scripts\01-publish-release.ps1 -Version 5.0.7
 
 # 2. Compile Setup EXE (script ini MENOLAK jalan kalau versi payload != versi rilis)
-powershell -File scripts\02-build-setup.ps1 -Version 5.0.6 `
+powershell -File scripts\02-build-setup.ps1 -Version 5.0.7 `
   -InnoCompilerPath "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 
 # 3. ZIP update (isi di root, tanpa wrapper folder) + SHA256SUMS.txt
-powershell -File scripts\04-build-update-zip.ps1 -Version 5.0.6
+powershell -File scripts\04-build-update-zip.ps1 -Version 5.0.7
 ```
 
 Hasil ada di `release\`:
-- `RyotaQC-V5-Setup-x64-v5.0.6.exe` — installer
-- `RyotaQC-V5-Update-v5.0.6.zip` — paket auto-update
+- `RyotaQC-V5-Setup-x64-v5.0.7.exe` — installer
+- `RyotaQC-V5-Update-v5.0.7.zip` — paket auto-update
 - `SHA256SUMS.txt` — checksum, di-upload juga ke release
 
 **Penting:** semua `#define` di `installer\RyotaQC.Setup.iss` dibungkus
@@ -113,7 +117,7 @@ rilis v5.0.3 / v5.0.4 / v5.0.5 tidak pernah benar-benar meng-update aplikasi.
 
 ## Versi
 
-- Versi saat ini: **5.0.6**
+- Versi saat ini: **5.0.7**
 - Setiap update naik 1 angka di belakang: 5.0.2 → 5.0.3 → 5.0.4 ...
 - Versi ditampilkan di menu utama aplikasi.
 

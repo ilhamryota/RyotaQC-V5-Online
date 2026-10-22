@@ -1,4 +1,4 @@
-# RyotaQC V5.0.6 - Panduan Update & Integrasi ERP
+# RyotaQC V5.0.7 - Panduan Update & Integrasi ERP
 
 Dokumen ini menjelaskan:
 1. Cara update aplikasi (auto-update & manual)
@@ -11,8 +11,8 @@ Dokumen ini menjelaskan:
 > (penjelasan di bagian 2). Karena itu auto-update dari versi-versi tersebut
 > **tidak akan pernah berhasil** — paket terpasang, tapi aplikasi tetap versi lama.
 >
-> **Lakukan update manual sekali** ke v5.0.6 (bagian 1.B). Setelah berada di
-> v5.0.6, auto-update ke versi berikutnya berjalan normal.
+> **Lakukan update manual sekali** ke v5.0.7 (bagian 1.B). Setelah berada di
+> v5.0.6 atau v5.0.7, auto-update ke versi berikutnya berjalan normal.
 
 ---
 
@@ -41,22 +41,27 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 > `%LOCALAPPDATA%\RyotaQC\logs\update.log` ke pengembang. Sejak v5.0.6 setiap
 > langkah update dicatat di situ (termasuk hasil verifikasi checksum dan
 > apakah versi benar-benar berubah setelah restart).
+>
+> Sejak **v5.0.7** hal ini juga tampil di layar: kalau update sebelumnya ternyata
+> tidak mengubah versi terpasang, saat app dibuka berikutnya muncul peringatan
+> **"Update Tidak Terpasang"** yang menyebut versi sekarang + lokasi file log.
+> Jadi kegagalan update tidak lagi lewat begitu saja.
 
 ### B. Update Manual (WAJIB untuk semua user di bawah v5.0.6)
 
 1. Buka https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh `RyotaQC-V5-Setup-x64-v5.0.6.exe` (~334 MB) **dan** `SHA256SUMS.txt`
+2. Unduh `RyotaQC-V5-Setup-x64-v5.0.7.exe` (~334 MB) **dan** `SHA256SUMS.txt`
 3. **Verifikasi unduhan** (penting — unduhan terpotong adalah penyebab paling
    umum pesan "This app can't run on your PC"):
 
    ```powershell
-   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.6.exe -Algorithm SHA256
+   Get-FileHash .\RyotaQC-V5-Setup-x64-v5.0.7.exe -Algorithm SHA256
    # bandingkan hasilnya dengan baris di SHA256SUMS.txt
    ```
 
 4. Tutup aplikasi RyotaQC yang sedang berjalan
 5. Jalankan installer (klik kanan → **Run as administrator**), tunggu selesai
-6. Buka app → nomor versi harus **v5.0.6**
+6. Buka app → nomor versi harus **v5.0.7**
 
 ---
 
@@ -310,6 +315,9 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | **Release v5.0.6** (installer berisi aplikasi v5.0.6) | ✅ ter-upload & terverifikasi (333.696.999 byte, 689/689 file staging ikut ter-paket, sampel byte GitHub = lokal) |
 | Rilis lama v5.0.3 / v5.0.4 / v5.0.5 diberi peringatan di catatan rilisnya | ✅ |
 | `SHA256SUMS.txt` dipublikasikan + cocok dengan file aslinya | ✅ |
+| Badge versi menu utama dibaca live dari assembly yang berjalan | ✅ selalu menampilkan versi yang benar-benar terpasang |
+| **v5.0.7**: peringatan "Update Tidak Terpasang" jika versi tidak berubah setelah update | ✅ ditambahkan (sebelumnya gagal tanpa jejak di layar) |
+| **Release v5.0.7** (postur sama dengan v5.0.6 + peringatan update gagal) | ⏳ sedang dibangun & di-upload |
 
 ---
 
@@ -320,6 +328,7 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | 1 | Patch `warehouse.controller.ts` (auto-fill bank supplier) | Perlu rebuild BE |
 | 2 | Restart ERP BE | `sudo -u admin /usr/bin/pm2 restart esteraone-green-be` |
 | 3 | Test dari app v5.0.6 terinstall (manual update dulu untuk user < v5.0.6) | Perlu install di laptop teknisi |
+| 4 | **Uji alur auto-update end-to-end: v5.0.6 → v5.0.7** (buka app → "Update Sekarang" → setujui UAC → cek badge menu utama = v5.0.7) | Butuh laptop teknisi yang sudah v5.0.6 |
 
 ### Cara Restart Service di VPS
 
@@ -345,6 +354,7 @@ curl -s http://127.0.0.1:8005/api/v1/switcher/target-db
 ## 6. REFERENSI CEPAT
 
 **Repositori:** https://github.com/ilhamryota/RyotaQC-V5-Online
+**Release terbaru (v5.0.7):** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.7
 **Release v5.0.6:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.6
 **Release lama (jangan dipakai untuk install baru):** v5.0.3 / v5.0.4 / v5.0.5
 **Web ERP DEV:** https://dev.esteraone.com/dashboard
