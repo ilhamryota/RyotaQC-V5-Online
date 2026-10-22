@@ -1,4 +1,4 @@
-# RyotaQC V5.0.4 - Panduan Update & Integrasi ERP
+# RyotaQC V5.0.5 - Panduan Update & Integrasi ERP
 
 Dokumen ini menjelaskan:
 1. Cara update aplikasi (auto-update & manual)
@@ -29,7 +29,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 ### B. Update Manual (jika auto-update gagal)
 
 1. Buka https://github.com/ilhamryota/RyotaQC-V5-Online/releases/latest
-2. Unduh `RyotaQC-V5-Setup-x64-v5.0.4.exe` (334 MB)
+2. Unduh `RyotaQC-V5-Setup-x64-v5.0.5.exe` (334 MB)
 3. Tutup aplikasi RyotaQC yang sedang berjalan
 4. Jalankan installer **as Administrator**
 5. Ikuti wizard sampai selesai
@@ -38,6 +38,22 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 
 ## 2. TROUBLESHOOTING AUTO-UPDATE
 
+### Masalah: setelah update, aplikasi yang terbuka masih versi lama
+
+**Penyebab (kode lama v5.0.3/v5.0.4):**
+- Updater menjalankan installer dengan flag `/RESTARTAPPLICATIONS`
+- Flag ini menimpa setting installer -> Inno Setup membuka ulang **file exe lama**
+  sebelum file baru selesai diganti -> aplikasi kembali ke versi lama
+
+**Sudah diperbaiki di v5.0.5:**
+- Updater tidak lagi mengirim `/CLOSEAPPLICATIONS` / `/RESTARTAPPLICATIONS`
+- App keluar penuh setelah menjalankan installer
+- Installer `RestartApplications=no` + `PrepareToInstall` menutup paksa instance lama
+- Relaunch versi baru lewat **satu jalur** (entri `[Run]`)
+
+> Catatan: kalau Anda sekarang di **v5.0.3/v5.0.4**, update ke **v5.0.5** akan benar
+> karena installer v5.0.5 sudah mengabaikan flag lama dari versi sebelumnya.
+
 ### Error: "Gagal mengunduh update. Periksa koneksi internet lalu coba lagi."
 
 **Penyebab di v5.0.2 (kode lama):**
@@ -45,7 +61,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 - Timeout 20 detik terlalu pendek untuk file besar
 
 **Solusi:**
-1. Pastikan release v5.0.4 punya asset `.zip` (sudah disiapkan: `RyotaQC-V5-Update-v5.0.4.zip`)
+1. Pastikan release v5.0.5 punya asset `.zip` (sudah disiapkan: `RyotaQC-V5-Update-v5.0.5.zip`)
 2. Jika masih gagal, cek:
    - **Firewall/Proxy** — apakah `objects.githubusercontent.com` diblokir?
    - **Antivirus** — apakah memblokir proses updater?
@@ -104,7 +120,7 @@ Saat app dibuka, app akan cek GitHub Releases. Jika ada versi baru:
 3. **Gudang** → Receive PO → unit otomatis masuk `QC_QUEUE`
 4. Buka **Menu Quality Control** → unit muncul di kolom **ANTREAN**
 
-**STEP 2 — Aplikasi RyotaQC V5.0.4**
+**STEP 2 — Aplikasi RyotaQC V5.0.5**
 
 Saat menu **Quality Control** dibuka, muncul popup **ESTERAONE ERP SYNC** (2 kolom):
 
@@ -212,7 +228,8 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 | UTF-8 (em-dash, titik tengah) di spec & notes | ✅ tidak rusak |
 | Spec dual storage/VGA | ✅ "AMD Ryzen 7 / 16 GB / SSD M.2 NVMe — 238 GB" |
 | HPP auto-calc | ✅ 4.5M → sellPrice 5.85M |
-| Release v5.0.4 + asset Setup EXE & Update ZIP | ✅ ter-upload, latest |
+| Release v5.0.5 + asset Setup EXE & Update ZIP | ✅ ter-upload, latest |
+| Fix auto-update relaunch versi lama | ✅ diperbaiki di v5.0.5 |
 
 ---
 
@@ -222,7 +239,7 @@ Setelah terhubung, panel kecil **ESTERAONE ERP — UNIT TERHUBUNG** di halaman Q
 |---|------|----------|
 | 1 | Patch `warehouse.controller.ts` (auto-fill bank supplier) | Perlu rebuild BE |
 | 2 | Restart ERP BE | `sudo -u admin /usr/bin/pm2 restart esteraone-green-be` |
-| 3 | Test dari app v5.0.4 terinstall | Perlu install di laptop teknisi |
+| 3 | Test dari app v5.0.5 terinstall | Perlu install di laptop teknisi |
 
 ### Cara Restart Service di VPS
 
@@ -248,7 +265,7 @@ curl -s http://127.0.0.1:8005/api/v1/switcher/target-db
 ## 6. REFERENSI CEPAT
 
 **Repositori:** https://github.com/ilhamryota/RyotaQC-V5-Online
-**Release v5.0.4:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.4
+**Release v5.0.5:** https://github.com/ilhamryota/RyotaQC-V5-Online/releases/tag/v5.0.5
 **Web ERP DEV:** https://dev.esteraone.com/dashboard
 **QC Hub:** http://109.123.239.163:8005
 
