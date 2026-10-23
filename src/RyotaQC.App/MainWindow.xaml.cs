@@ -547,48 +547,7 @@ public partial class MainWindow : Window
 
     private void UpdateSelectionBadge(DependencyObject? focusedObject)
     {
-        if (focusedObject is not UIElement element ||
-            !element.IsVisible ||
-            element.RenderSize.Width <= 1 ||
-            element.RenderSize.Height <= 1 ||
-            !IsInsideContentFrame(element))
-        {
-            KeyboardSelectedBadge.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        try
-        {
-            var topLeft = element.TranslatePoint(new Point(0, 0), this);
-            var x = topLeft.X;
-            var y = topLeft.Y;
-
-            const double margin = 8;
-            const double minY = 56; // keep below custom title bar
-            var targetX = x + element.RenderSize.Width - KeyboardSelectedBadge.ActualWidth - 6;
-            var targetY = Math.Max(minY, y - 26);
-
-            if (double.IsNaN(targetX) || double.IsInfinity(targetX))
-            {
-                targetX = margin;
-            }
-
-            if (double.IsNaN(targetY) || double.IsInfinity(targetY))
-            {
-                targetY = minY;
-            }
-
-            var maxX = Math.Max(margin, ActualWidth - KeyboardSelectedBadge.ActualWidth - margin);
-            targetX = Math.Max(margin, Math.Min(targetX, maxX));
-
-            Canvas.SetLeft(KeyboardSelectedBadge, targetX);
-            Canvas.SetTop(KeyboardSelectedBadge, targetY);
-            KeyboardSelectedBadge.Visibility = Visibility.Visible;
-        }
-        catch
-        {
-            KeyboardSelectedBadge.Visibility = Visibility.Collapsed;
-        }
+        // "? SELECTED" keyboard-navigation badge removed per QC request.
     }
 
     private bool IsInsideContentFrame(DependencyObject target)

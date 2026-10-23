@@ -194,6 +194,13 @@ public partial class WallpaperDesktopPageViewModel : ObservableObject
                 var name = Path.GetFileNameWithoutExtension(file);
                 if (!string.IsNullOrWhiteSpace(name))
                 {
+                    // RyotaQC sendiri tidak ditampilkan sebagai pilihan shortcut desktop.
+                    if (name.Contains("RyotaQC", StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains("Ryota QC", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     shortcuts.TryAdd(name, file);
                 }
             }

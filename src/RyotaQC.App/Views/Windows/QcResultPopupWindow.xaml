@@ -56,7 +56,7 @@
 
             <!-- Shortcut hint -->
             <TextBlock Grid.Row="2"
-                       Text="Shortcut: Enter = OK   ·   Space = Optional   ·   Esc = Fail"
+                       Text="Shortcut: Space = OK   ·   - (minus) = Optional   ·   Esc = Fail"
                        Foreground="#8C97AB"
                        FontFamily="Segoe UI"
                        FontSize="11.5"
@@ -73,7 +73,7 @@
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" />
                                     <TextBlock Text="OK" FontFamily="Segoe UI" FontSize="15" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,1,0,0" />
-                                    <TextBlock Text="Enter" FontFamily="Segoe UI" FontSize="10" Foreground="#CFF7E2" HorizontalAlignment="Center" Margin="0,1,0,0" />
+                                    <TextBlock Text="Space" FontFamily="Segoe UI" FontSize="10" Foreground="#CFF7E2" HorizontalAlignment="Center" Margin="0,1,0,0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -93,7 +93,7 @@
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE738;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFFFFF" HorizontalAlignment="Center" />
                                     <TextBlock Text="Optional" FontFamily="Segoe UI" FontSize="15" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,1,0,0" />
-                                    <TextBlock Text="Space" FontFamily="Segoe UI" FontSize="10" Foreground="#E2E8F0" HorizontalAlignment="Center" Margin="0,1,0,0" />
+                                    <TextBlock Text="-" FontFamily="Segoe UI" FontSize="10" Foreground="#E2E8F0" HorizontalAlignment="Center" Margin="0,1,0,0" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>

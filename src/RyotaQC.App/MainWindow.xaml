@@ -158,19 +158,8 @@
             <TextBlock Text="{Binding ToastMessage}" Foreground="White" FontFamily="Bahnschrift" FontSize="14" />
         </Border>
 
-        <Canvas IsHitTestVisible="False" Panel.ZIndex="2000">
-            <Border x:Name="KeyboardSelectedBadge"
-                    Visibility="Collapsed"
-                    Padding="8,3"
-                    CornerRadius="6"
-                    Background="#D4308FB6"
-                    BorderBrush="#FFF2FEFF"
-                    BorderThickness="1">
-                <TextBlock Text="? SELECTED"
-                           FontFamily="Bahnschrift SemiBold"
-                           FontSize="11"
-                           Foreground="White" />
-            </Border>
+        <Canvas IsHitTestVisible="False" Panel.ZIndex="2000" Visibility="Collapsed">
+            <!-- "? SELECTED" keyboard badge intentionally removed per QC request. -->
         </Canvas>
     </Grid>
 </Window>

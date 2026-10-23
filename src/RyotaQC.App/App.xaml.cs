@@ -1,5 +1,6 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using RyotaQC.App.Helpers;
 using RyotaQC.App.Models;
 using RyotaQC.App.Services;
 using RyotaQC.App.ViewModels;
@@ -15,6 +16,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Semua popup QC bisa digeser (drag) dan otomatis menyesuaikan diri
+        // dengan resolusi / aspect ratio layar agar tidak terpotong.
+        WindowDragBehavior.EnableForPopupWindows();
 
         // Global exception handlers — catch unhandled exceptions so they are
         // logged instead of silently crashing the app.

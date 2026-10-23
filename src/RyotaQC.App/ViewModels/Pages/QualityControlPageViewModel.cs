@@ -2868,7 +2868,10 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 NumericTests = numericTests,
                 TestedBy = SelectedTester?.Name ?? sysInfo.UserName ?? "Teknisi QC",
                 TesterId = SelectedTester?.Id,
-                Notes = ChecklistSummary
+                // Catatan Tambahan ERP hanya untuk keterangan retur/manual.
+                // Jangan kirim template otomatis (Kode Unit, Tanggal Test, Model
+                // Laptop) atau ringkasan hasil QC ke kolom Catatan Tambahan ERP.
+                Notes = string.Join(Environment.NewLine, BuildAdditionalNotes(Notes))
             };
 
             // 5. Kirim ke Hub Contabo :8005

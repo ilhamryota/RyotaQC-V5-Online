@@ -34,11 +34,12 @@ public partial class QcHealthVerdictPopupWindow : Window
     {
         switch (e.Key)
         {
-            case Key.Enter:
+            case Key.Space:
                 e.Handled = true;
                 Ok_Click(sender, e);
                 break;
-            case Key.Space:
+            case Key.OemMinus:
+            case Key.Subtract:
                 e.Handled = true;
                 Optional_Click(sender, e);
                 break;

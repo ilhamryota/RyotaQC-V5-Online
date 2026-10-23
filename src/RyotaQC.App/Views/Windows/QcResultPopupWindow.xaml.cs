@@ -10,9 +10,9 @@ namespace RyotaQC.App.Views.Windows;
 /// Used after each QC test tool is closed to capture pass/fail/skip.
 ///
 /// Keyboard shortcuts (per QC workflow):
-///   Enter -> OK / Pass
-///   Space -> - Optional
-///   Esc   -> X Fail
+///   Space            -> OK / Pass
+///   - (minus)        -> - Optional
+///   Esc              -> X Fail
 /// </summary>
 public partial class QcResultPopupWindow : Window
 {
@@ -48,11 +48,12 @@ public partial class QcResultPopupWindow : Window
     {
         switch (e.Key)
         {
-            case Key.Enter:
+            case Key.Space:
                 e.Handled = true;
                 Select(QcResult.Pass);
                 break;
-            case Key.Space:
+            case Key.OemMinus:
+            case Key.Subtract:
                 e.Handled = true;
                 Select(QcResult.Skip);
                 break;

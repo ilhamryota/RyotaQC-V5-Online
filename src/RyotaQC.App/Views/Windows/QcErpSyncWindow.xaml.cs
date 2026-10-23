@@ -49,11 +49,9 @@ public partial class QcErpSyncWindow : Window
         MaxHeight = Math.Max(420, SystemParameters.WorkArea.Height - 24);
 
         PoUnitCombo.ItemsSource = _poUnits;
-        PoUnitCombo.DisplayMemberPath = "DisplayText";
         PoUnitCombo.SelectionChanged += PoUnitCombo_SelectionChanged;
 
         TesterCombo.ItemsSource = _testers;
-        TesterCombo.DisplayMemberPath = "Name";
         TesterCombo.SelectionChanged += (_, _) => UpdateConnectButton();
 
         Services.Sfx.Action();
@@ -519,6 +517,75 @@ public partial class QcErpSyncWindow : Window
         finally
         {
             AddTesterButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Hapus tester dari database ERP (nonaktifkan user tester) + hilangkan dari
+    /// daftar tester hub, lalu sinkronkan ulang dropdown di aplikasi.
+    /// </summary>
+    private async void DeleteTester_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not TesterInfo tester)
+        {
+            return;
+        }
+
+        var confirmed = QcYesNoPopupWindow.Show(
+            "Hapus Tester",
+            $"Hapus tester '{tester.Name}' dari database?\n\n" +
+            "Tester ini akan langsung hilang dari pilihan dropdown di aplikasi RyotaQC " +
+            "dan dari daftar tester QC di ERP.",
+            "Hapus",
+            "Batal");
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        fe.IsEnabled = false;
+        try
+        {
+            var result = await _erpSync.DeleteTesterAsync(tester.Id);
+            if (result is { Success: true })
+            {
+                var toRemove = _testers
+                    .Where(t => t.Id == tester.Id)
+                    .ToList();
+                foreach (var t in toRemove)
+                {
+                    _testers.Remove(t);
+                }
+
+                if (TesterCombo.SelectedItem is TesterInfo selected && selected.Id == tester.Id)
+                {
+                    TesterCombo.SelectedItem = null;
+                }
+
+                UpdateConnectButton();
+                SetFooter($"Tester '{tester.Name}' dihapus dari database ERP.", "#39C86B");
+
+                QcMessagePopupWindow.Show(
+                    "Tester Dihapus",
+                    $"Tester '{tester.Name}' berhasil dihapus dari database ERP dan tidak lagi " +
+                    "muncul di dropdown Tester.",
+                    QcMessageTone.Success);
+            }
+            else
+            {
+                fe.IsEnabled = true;
+                SetFooter(result?.Message ?? "Gagal menghapus tester.", "#FF6B6B");
+                QcMessagePopupWindow.Show(
+                    "Gagal Hapus Tester",
+                    result?.Message ?? "Tester gagal dihapus. Periksa koneksi ke hub ERP.",
+                    QcMessageTone.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            fe.IsEnabled = true;
+            SetFooter($"Gagal hapus tester: {ex.Message}", "#FF6B6B");
         }
     }
 

@@ -14,6 +14,7 @@ public interface IErpSyncService
     Task<PoUnitsResponse?> LookupPoUnitsAsync(string poNumber, string preferredBrand = "Lenovo");
     Task<TestersResponse?> GetTestersAsync();
     Task<TestersResponse?> RegisterTesterAsync(string name);
+    Task<TestersResponse?> DeleteTesterAsync(string id);
 }
 
 public sealed class ErpSyncService : IErpSyncService
@@ -118,6 +119,22 @@ public sealed class ErpSyncService : IErpSyncService
             return null;
         }
     }
+
+    public async Task<TestersResponse?> DeleteTesterAsync(string id)
+    {
+        try
+        {
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/testers/{Uri.EscapeDataString(id)}";
+            var response = await _httpClient.DeleteAsync(url);
+            var responseString = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<TestersResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Gagal menghapus tester: {id}", ex);
+            return null;
+        }
+    }
 }
 
 public class ErpQcPayload
@@ -215,9 +232,21 @@ public class PoUnitItem
     public string ProductName { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
 
-    /// <summary>Label used by ComboBox display, e.g. "EST-2610-0003-01 — Lenovo / ThinkPad X395".</summary>
+    /// <summary>Label posisi unit di kanban QC (Antrean / Tes Running / Selesai / Service / Retur).</summary>
+    public string StatusLabel => (Status ?? string.Empty).Trim().ToUpperInvariant() switch
+    {
+        "QC_QUEUE" or "QC_ANTREAN" or "ANTREAN" or "QUEUE" => "QC Antrean",
+        "QC_PROCESS" or "RUNNING_TEST" or "RUNNING" or "TES_RUNNING" => "Tes Running",
+        "PASS" or "SELESAI" => "Selesai",
+        "SERVICE" => "Service",
+        "RETUR" or "RETURN" => "Retur",
+        "" => "-",
+        var other => other
+    };
+
+    /// <summary>Label used by ComboBox display, e.g. "EST-2610-0003-01 - Lenovo - ThinkPad X395 (QC Antrean)".</summary>
     public string DisplayText =>
-        $"{InternalId} — {Brand} / {ProductName} [{Status}]";
+        $"{InternalId} - {Brand} - {ProductName} ({StatusLabel})";
 }
 
 // ===== Testers response types =====

@@ -60,7 +60,7 @@
             </Border>
 
             <TextBlock Grid.Row="2"
-                       Text="Enter = OK   ·   Space = Optional   ·   Esc = Fail"
+                       Text="Space = OK   ·   - (minus) = Optional   ·   Esc = Fail"
                        Foreground="#AEB7CA"
                        FontFamily="Segoe UI"
                        FontSize="11.5"
@@ -76,6 +76,7 @@
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" />
                                     <TextBlock Text="OK" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="Space" FontFamily="Segoe UI" FontSize="10" Foreground="#CFF7E2" HorizontalAlignment="Center" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -95,6 +96,7 @@
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFFFFF" HorizontalAlignment="Center" />
                                     <TextBlock Text="Optional" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="-" FontFamily="Segoe UI" FontSize="10" Foreground="#E2E8F0" HorizontalAlignment="Center" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
@@ -114,6 +116,7 @@
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" />
                                     <TextBlock Text="Fail" FontFamily="Segoe UI" FontSize="14" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                    <TextBlock Text="Esc" FontFamily="Segoe UI" FontSize="10" Foreground="#FFD6D6" HorizontalAlignment="Center" />
                                 </StackPanel>
                             </Border>
                             <ControlTemplate.Triggers>
