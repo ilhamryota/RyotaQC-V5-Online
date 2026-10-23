@@ -60,7 +60,24 @@ public static class WindowDragBehavior
             return;
         }
 
+        // Window full screen (mis. LCD / Touchscreen / Touchpad Test) tidak boleh
+        // ikut diproses: clamp ukuran akan mengecilkannya dari full screen, dan
+        // DragMove akan mengembalikannya ke ukuran normal saat diklik.
+        if (IsFullscreen(window))
+        {
+            return;
+        }
+
         Attach(window);
+    }
+
+    /// <summary>
+    /// True bila window tampil full screen (maximized tanpa chrome bawaan).
+    /// Window seperti ini tidak boleh di-clamp maupun di-drag.
+    /// </summary>
+    private static bool IsFullscreen(Window window)
+    {
+        return window.WindowState == WindowState.Maximized;
     }
 
     private static void Attach(Window window)
@@ -77,13 +94,32 @@ public static class WindowDragBehavior
         window.LocationChanged += (_, _) =>
         {
             // Saat sedang di-drag, jangan clamp supaya gerakan tidak melawan user.
-            if (!_isDragging)
+            if (!_isDragging && !IsFullscreen(window))
             {
                 ClampPosition(window);
             }
         };
         window.SizeChanged += (_, _) =>
         {
+            if (IsFullscreen(window))
+            {
+                return;
+            }
+
+            ClampSize(window);
+            ClampPosition(window);
+        };
+        // Bila window di-maximize/restore setelah tampil, clamp dilepas atau
+        // dipasang kembali agar window full screen tetap menutupi seluruh layar.
+        window.StateChanged += (_, _) =>
+        {
+            if (IsFullscreen(window))
+            {
+                window.MaxWidth = double.PositiveInfinity;
+                window.MaxHeight = double.PositiveInfinity;
+                return;
+            }
+
             ClampSize(window);
             ClampPosition(window);
         };
@@ -93,6 +129,13 @@ public static class WindowDragBehavior
     private static void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not Window window || e.ButtonState != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        // Window full screen tidak boleh digeser: DragMove pada window maximized
+        // akan mengembalikannya ke ukuran normal, sehingga tes tidak lagi full screen.
+        if (IsFullscreen(window))
         {
             return;
         }
@@ -123,6 +166,11 @@ public static class WindowDragBehavior
     /// <summary>Batasi ukuran maksimum window ke area kerja layar aktif.</summary>
     private static void ClampSize(Window window)
     {
+        if (IsFullscreen(window))
+        {
+            return;
+        }
+
         var workArea = SystemParameters.WorkArea;
         var maxHeight = Math.Max(240d, workArea.Height - WorkAreaMargin);
         var maxWidth = Math.Max(320d, workArea.Width - WorkAreaMargin);
@@ -144,6 +192,11 @@ public static class WindowDragBehavior
     /// </summary>
     private static void ClampPosition(Window window)
     {
+        if (IsFullscreen(window))
+        {
+            return;
+        }
+
         var workArea = SystemParameters.WorkArea;
         var width = window.ActualWidth > 0 ? window.ActualWidth : window.Width;
         var height = window.ActualHeight > 0 ? window.ActualHeight : window.Height;

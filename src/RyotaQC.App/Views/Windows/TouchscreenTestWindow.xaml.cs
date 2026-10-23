@@ -27,6 +27,7 @@ public partial class TouchscreenTestWindow : Window
     public TouchscreenTestWindow()
     {
         InitializeComponent();
+        Helpers.FullscreenWindow.Apply(this);
         _cells = new Border[GridCols, GridRows];
         _tapCounts = new int[GridCols, GridRows];
 

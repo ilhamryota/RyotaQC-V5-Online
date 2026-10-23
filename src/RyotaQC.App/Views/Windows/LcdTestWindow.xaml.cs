@@ -20,6 +20,7 @@ public partial class LcdTestWindow : Window
     public LcdTestWindow()
     {
         InitializeComponent();
+        Helpers.FullscreenWindow.Apply(this);
         DataContext = this;
         CurrentBrush = _colors[_index];
         Focus();

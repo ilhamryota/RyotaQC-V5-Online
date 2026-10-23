@@ -24,6 +24,7 @@ public partial class TouchpadTestWindow : Window
     public TouchpadTestWindow()
     {
         InitializeComponent();
+        Helpers.FullscreenWindow.Apply(this);
 
         SensitivitySlider.ValueChanged += (_, _) =>
         {
