@@ -15,6 +15,8 @@ public interface IErpSyncService
     Task<TestersResponse?> GetTestersAsync();
     Task<TestersResponse?> RegisterTesterAsync(string name);
     Task<TestersResponse?> DeleteTesterAsync(string id);
+    // QC-LOG (20261106): riwayat hasil QC sebuah unit (maks 7 terbaru).
+    Task<QcHistoryResponse?> GetQcHistoryAsync(string code);
 }
 
 public sealed class ErpSyncService : IErpSyncService
@@ -132,6 +134,23 @@ public sealed class ErpSyncService : IErpSyncService
         catch (Exception ex)
         {
             _logger.Error($"Gagal menghapus tester: {id}", ex);
+            return null;
+        }
+    }
+
+    // QC-LOG (20261106): ambil riwayat hasil QC unit dari hub ERP.
+    public async Task<QcHistoryResponse?> GetQcHistoryAsync(string code)
+    {
+        try
+        {
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/history/{Uri.EscapeDataString(code.Trim())}";
+            var response = await _httpClient.GetAsync(url);
+            var responseString = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<QcHistoryResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Gagal mengambil log QC untuk unit: {code}", ex);
             return null;
         }
     }
@@ -263,4 +282,54 @@ public class TesterInfo
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
+}
+
+// ===== QC-LOG (20261106): riwayat hasil QC =====
+public class QcHistoryResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public List<QcHistoryEntry> Data { get; set; } = new();
+    public string? InternalId { get; set; }
+    public string? SerialNumber { get; set; }
+}
+
+public class QcHistoryEntry
+{
+    public string Id { get; set; } = string.Empty;
+    public string? TesterName { get; set; }
+    public string? QcStatusName { get; set; }
+    public string? OverallStatus { get; set; }
+    public string? Source { get; set; }
+    public string? Notes { get; set; }
+    public DateTime? CreatedAt { get; set; }
+
+    /// <summary>Label status ringkas untuk daftar log di aplikasi.</summary>
+    public string StatusLabel
+    {
+        get
+        {
+            var raw = (QcStatusName ?? OverallStatus ?? "-").Trim();
+            var up = raw.ToUpperInvariant();
+            if (up.Contains("SELESAI") || up.Contains("READY")) return "Selesai";
+            if (up.Contains("RUNNING") || up.Contains("PROSES")) return "Tes Running";
+            if (up.Contains("RETUR")) return "Retur";
+            if (up.Contains("SERVIS") || up.Contains("SERVICE")) return "Service";
+            if (up.Contains("ANTREAN") || up.Contains("QUEUE")) return "Antrean";
+            if (up == "PASS") return "PASS";
+            if (up == "FAIL") return "FAIL";
+            if (up == "ISSUE") return "ISSUE";
+            return string.IsNullOrWhiteSpace(raw) ? "-" : raw;
+        }
+    }
+
+    /// <summary>Waktu log diformat lokal (enak dibaca).</summary>
+    public string TimeLabel =>
+        CreatedAt.HasValue ? CreatedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "-";
+
+    public string SourceLabel =>
+        string.Equals(Source, "APP", StringComparison.OrdinalIgnoreCase) ? "App RyotaQC" : "Web Kanban";
+
+    public string TesterLabel =>
+        string.IsNullOrWhiteSpace(TesterName) ? "(tanpa tester)" : TesterName!;
 }

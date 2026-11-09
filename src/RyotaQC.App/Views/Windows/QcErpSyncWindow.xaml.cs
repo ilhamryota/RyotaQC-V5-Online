@@ -126,6 +126,53 @@ public partial class QcErpSyncWindow : Window
         }
     }
 
+    // QC-TESTER-REALTIME (20261109): muat ulang daftar tester tepat saat dropdown
+    // dibuka, supaya penambahan/penghapusan tester di Kanban ERP langsung tampil
+    // tanpa perlu menutup jendela "Hubungkan ke ERP".
+    private async void TesterCombo_DropDownOpened(object sender, EventArgs e)
+    {
+        await ReloadTestersAsync();
+    }
+
+    private async Task ReloadTestersAsync()
+    {
+        try
+        {
+            var previous = TesterCombo.SelectedItem as TesterInfo ?? _current.Tester;
+
+            var result = await _erpSync.GetTestersAsync();
+            if (result is not { Success: true })
+            {
+                return;
+            }
+
+            _testers.Clear();
+            foreach (var t in result.Data)
+            {
+                _testers.Add(t);
+            }
+
+            if (previous is not null)
+            {
+                var match = _testers.FirstOrDefault(t => t.Id == previous.Id)
+                            ?? _testers.FirstOrDefault(t => string.Equals(
+                                t.Name,
+                                previous.Name,
+                                StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                {
+                    TesterCombo.SelectedItem = match;
+                }
+            }
+
+            UpdateConnectButton();
+        }
+        catch
+        {
+            // Tester list comes from the hub; ignore transient failures.
+        }
+    }
+
     // =====================================================================
     // Mode switching
     // =====================================================================
@@ -177,9 +224,9 @@ public partial class QcErpSyncWindow : Window
         var hasUnit = _selectedMode == "po"
             ? PoUnitCombo?.SelectedItem is PoUnitItem
             : _selectedUnit is not null;
-        var hasTester = TesterCombo?.SelectedItem is TesterInfo;
 
-        ConnectButton.IsEnabled = hasUnit && hasTester;
+        // QC-TESTER (20261106): tester opsional. Hanya unit yang wajib.
+        ConnectButton.IsEnabled = hasUnit;
 
         if (!updateHint)
         {
@@ -190,13 +237,9 @@ public partial class QcErpSyncWindow : Window
         {
             FooterStatusText.Text = "Pilih kode unit terlebih dahulu.";
         }
-        else if (!hasTester)
-        {
-            FooterStatusText.Text = "Pilih tester terlebih dahulu (wajib sebelum Hubungkan ke ERP).";
-        }
         else
         {
-            FooterStatusText.Text = "Unit dan tester siap. Klik Hubungkan ke ERP.";
+            FooterStatusText.Text = "Unit siap. Klik Hubungkan ke ERP (tester opsional).";
         }
     }
 
@@ -347,12 +390,7 @@ public partial class QcErpSyncWindow : Window
         }
 
         var tester = ResolveTester();
-        if (tester is null)
-        {
-            SetFooter("Pilih tester terlebih dahulu. Tester wajib diisi sebelum Hubungkan ke ERP.", "#F0A020");
-            TesterCombo.Focus();
-            return;
-        }
+        // QC-TESTER (20261106): tester opsional. Jangan blokir koneksi bila kosong.
 
         var poNumber = _selectedMode == "po"
             ? (PoBox.Text ?? string.Empty).Trim()
@@ -364,7 +402,7 @@ public partial class QcErpSyncWindow : Window
             PoNumber = poNumber,
             Connected = true,
             Tester = tester,
-            TesterName = tester.Name,
+            TesterName = tester?.Name ?? string.Empty,
             Mode = _selectedMode
         };
 
@@ -375,13 +413,8 @@ public partial class QcErpSyncWindow : Window
 
     private void Keep_Click(object sender, RoutedEventArgs e)
     {
+        // QC-TESTER (20261106): tester opsional, jadi Lanjutkan selalu bisa.
         var tester = ResolveTester() ?? _current.Tester;
-        if (tester is null)
-        {
-            SetFooter("Pilih tester terlebih dahulu sebelum melanjutkan.", "#F0A020");
-            TesterCombo.Focus();
-            return;
-        }
 
         Result = new QcErpConnection
         {
@@ -389,7 +422,7 @@ public partial class QcErpSyncWindow : Window
             PoNumber = _current.PoNumber,
             Connected = true,
             Tester = tester,
-            TesterName = tester.Name,
+            TesterName = tester?.Name ?? string.Empty,
             Mode = _current.Mode
         };
 
@@ -461,131 +494,39 @@ public partial class QcErpSyncWindow : Window
     }
 
     // =====================================================================
-    // Testers
+    // Testers & Log
     // =====================================================================
 
-    private async void AddTester_Click(object sender, RoutedEventArgs e)
+    // QC-LOG (20261106): lihat riwayat hasil QC unit ini dari ERP.
+    private async void History_Click(object sender, RoutedEventArgs e)
     {
-        var name = (NewTesterBox.Text ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(name))
+        var code = _selectedUnit?.InternalId
+                   ?? _selectedUnit?.PraQcCode
+                   ?? _selectedUnit?.SerialNumber
+                   ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(code))
         {
-            SetFooter("Ketik nama tester baru terlebih dahulu.", "#F0A020");
+            SetFooter("Pilih atau cari kode unit terlebih dahulu untuk melihat log.", "#F0A020");
             return;
         }
 
-        AddTesterButton.IsEnabled = false;
+        HistoryButton.IsEnabled = false;
         try
         {
-            var result = await _erpSync.RegisterTesterAsync(name);
-            if (result is { Success: true })
-            {
-                var tester = result.SingleTester
-                             ?? result.Data.FirstOrDefault()
-                             ?? new TesterInfo { Name = name };
-
-                if (!_testers.Any(t => t.Id == tester.Id))
-                {
-                    _testers.Add(tester);
-                }
-
-                TesterCombo.SelectedItem = tester;
-                NewTesterBox.Text = string.Empty;
-                UpdateConnectButton();
-
-                SetFooter($"Tester '{tester.Name}' terdaftar dan siap dipakai.", "#39C86B");
-
-                QcMessagePopupWindow.Show(
-                    "Tester Terdaftar",
-                    $"Tester '{tester.Name}' berhasil didaftarkan dan tersimpan di database ERP.\n\n" +
-                    "Tester ini sekarang muncul di pilihan dropdown Tester dan akan otomatis " +
-                    "mengisi kolom Tester QC pada kanban ERP saat hasil dikirim.",
-                    QcMessageTone.Success);
-            }
-            else
-            {
-                SetFooter(result?.Message ?? "Gagal mendaftarkan tester.", "#FF6B6B");
-                QcMessagePopupWindow.Show(
-                    "Gagal Daftar Tester",
-                    result?.Message ?? "Tester baru gagal didaftarkan. Periksa koneksi ke hub ERP.",
-                    QcMessageTone.Error);
-            }
+            var result = await _erpSync.GetQcHistoryAsync(code);
+            var entries = result?.Data ?? new System.Collections.Generic.List<QcHistoryEntry>();
+            QcHistoryWindow.Show(
+                string.IsNullOrWhiteSpace(result?.InternalId) ? code : result!.InternalId!,
+                entries);
         }
         catch (Exception ex)
         {
-            SetFooter($"Gagal daftar tester: {ex.Message}", "#FF6B6B");
+            SetFooter($"Gagal memuat log QC: {ex.Message}", "#FF6B6B");
         }
         finally
         {
-            AddTesterButton.IsEnabled = true;
-        }
-    }
-
-    /// <summary>
-    /// Hapus tester dari database ERP (nonaktifkan user tester) + hilangkan dari
-    /// daftar tester hub, lalu sinkronkan ulang dropdown di aplikasi.
-    /// </summary>
-    private async void DeleteTester_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is not FrameworkElement fe || fe.Tag is not TesterInfo tester)
-        {
-            return;
-        }
-
-        var confirmed = QcYesNoPopupWindow.Show(
-            "Hapus Tester",
-            $"Hapus tester '{tester.Name}' dari database?\n\n" +
-            "Tester ini akan langsung hilang dari pilihan dropdown di aplikasi RyotaQC " +
-            "dan dari daftar tester QC di ERP.",
-            "Hapus",
-            "Batal");
-
-        if (!confirmed)
-        {
-            return;
-        }
-
-        fe.IsEnabled = false;
-        try
-        {
-            var result = await _erpSync.DeleteTesterAsync(tester.Id);
-            if (result is { Success: true })
-            {
-                var toRemove = _testers
-                    .Where(t => t.Id == tester.Id)
-                    .ToList();
-                foreach (var t in toRemove)
-                {
-                    _testers.Remove(t);
-                }
-
-                if (TesterCombo.SelectedItem is TesterInfo selected && selected.Id == tester.Id)
-                {
-                    TesterCombo.SelectedItem = null;
-                }
-
-                UpdateConnectButton();
-                SetFooter($"Tester '{tester.Name}' dihapus dari database ERP.", "#39C86B");
-
-                QcMessagePopupWindow.Show(
-                    "Tester Dihapus",
-                    $"Tester '{tester.Name}' berhasil dihapus dari database ERP dan tidak lagi " +
-                    "muncul di dropdown Tester.",
-                    QcMessageTone.Success);
-            }
-            else
-            {
-                fe.IsEnabled = true;
-                SetFooter(result?.Message ?? "Gagal menghapus tester.", "#FF6B6B");
-                QcMessagePopupWindow.Show(
-                    "Gagal Hapus Tester",
-                    result?.Message ?? "Tester gagal dihapus. Periksa koneksi ke hub ERP.",
-                    QcMessageTone.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            fe.IsEnabled = true;
-            SetFooter($"Gagal hapus tester: {ex.Message}", "#FF6B6B");
+            HistoryButton.IsEnabled = true;
         }
     }
 
@@ -598,30 +539,7 @@ public partial class QcErpSyncWindow : Window
 
         // The previous session's tester is valid even before the asynchronous
         // tester list finishes loading (or when the hub is temporarily down).
-        if (_current.Tester is not null)
-        {
-            return _current.Tester;
-        }
-
-        // Allow the user to type an existing tester name directly, but only
-        // when it matches a registered tester. A name that has not been added
-        // yet must go through "Add New Tester" first (so it exists in the ERP
-        // database and can fill the Kanban Tester QC column).
-        var typed = (NewTesterBox.Text ?? string.Empty).Trim();
-        if (typed.Length == 0)
-        {
-            return null;
-        }
-
-        var match = _testers.FirstOrDefault(x =>
-            string.Equals(x.Name, typed, StringComparison.OrdinalIgnoreCase));
-        if (match is not null)
-        {
-            TesterCombo.SelectedItem = match;
-            return match;
-        }
-
-        return null;
+        return _current.Tester;
     }
 
     private string ResolveTesterName() => ResolveTester()?.Name ?? string.Empty;

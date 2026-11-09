@@ -1,0 +1,87 @@
+﻿Modul;Kode modul;Halaman / Fitur;Alamat;Kunci izin;SUPER (16 org);TEKNISI (16 org);ADM-SVC (14 org);HEAD-SVC (7 org);SALES-LPT (7 org);HEAD_GUDANG (3 org);GDG-HO (2 org);LAPTOP (1 org);FINANCE (1 org);HRD (1 org);HEAD-LPT (1 org);Support Best Service (1 org)
+Menu Karyawan;EMPLOYEE_PORTAL;Profil Karyawan;/profile;;*;*;*;*;*;*;*;*;*;*;*;*
+Menu Karyawan;EMPLOYEE_PORTAL;Absensi Saya;/attendance;;*;*;*;*;*;*;*;*;*;*;*;*
+Menu Karyawan;EMPLOYEE_PORTAL;Pengajuan Cuti / Izin;/hr/pengajuan-cuti;;*;*;*;*;*;*;*;*;*;*;*;*
+Holding;HOLDING;Profil Holding / HO;/master/company;master_company:read;.;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Outlet;/master/outlet;master_outlet:read;.;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Warehouse / Gudang;/master/warehouse;master_warehouse:read;.;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Role Management;/master/roles;master_role:read;.;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Kelola Pengguna;/master/users;master_user:read;v;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Config System;/master/config-system;master_config_system:read;.;x;x;x;x;x;x;x;x;x;x;x
+Holding;HOLDING;Activity Log;/master/activity;activity_log:read;.;x;x;x;x;x;x;x;x;x;x;x
+KPI;KPI;Pusat Kontrol Penjualan;/kpi/dashboard;kpi:read;.;x;x;x;x;x;x;x;x;x;x;x
+KPI;KPI;Input Funnel Harian;/kpi/input-harian;kpi:read;.;x;x;x;x;x;x;x;x;x;x;x
+KPI;KPI;Kelola Target Cabang;/kpi/targets;kpi:read;.;x;x;x;x;x;x;x;x;x;x;x
+HR & Payroll;HR_PAYROLL;Data Karyawan;/master/karyawan;master_user:read;v;x;x;x;x;x;x;x;x;v;x;x
+HR & Payroll;HR_PAYROLL;Dashboard Absensi;/hr/dashboard-absensi;attendance_recap:read;v;x;x;x;x;x;x;x;x;v;x;x
+HR & Payroll;HR_PAYROLL;Rekap Absensi;/hr/rekap-absensi;attendance_recap:read;v;x;x;x;x;x;x;x;x;v;x;x
+HR & Payroll;HR_PAYROLL;Payroll;/hr/payroll;payroll:read;v;x;x;x;x;x;x;x;x;v;x;x
+HR & Payroll;HR_PAYROLL;Shift Master;/hr/shift-master;shift_master:read;v;x;x;x;x;x;x;x;x;v;x;x
+HR & Payroll;HR_PAYROLL;Shift Assignment;/hr/shift-assignments;shift_assignment:read;v;x;x;x;x;x;x;x;x;v;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Dashboard Keuangan;/finance/dashboard;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Chart of Accounts (COA);/finance/coa;coa:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Buku Jurnal Umum;/finance/journal;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Kas & Rekening Bank;/finance/bank-cash;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Modal & Investor;/finance/equity;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Aset Tetap Perusahaan;/finance/assets;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Valuasi Persediaan & Aset Dagang;/finance/inventory-valuation;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Utang Usaha (Payables);/finance/payables;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Piutang Usaha (Receivables);/finance/receivables;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Approval PO;/finance/approval-po;feature_approval_po:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Beban Operasional;/finance/expenses;feature_expenses:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Pembayaran Operasional;/finance/operational-payments;feature_operational_payments:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Transaksi Penjualan Outlet;/finance/sales-transactions;feature_sales_transactions:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Laporan Keuangan & Neraca;/finance/reports;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Keuangan & Laporan;FINANCE_REPORTS;Pajak & Fiskal (Tax);/finance/tax;finance:read;v;x;x;x;x;x;x;x;v;x;x;x
+Merchandising & Commercial;COMMERCIAL;Pricing Matrix Laptop;/commercial/laptop-pricing;commercial_pricing:read;b;b;b;b;x;x;x;x;x;x;x;b
+Merchandising & Commercial;COMMERCIAL;Tarif Jasa Servis;/commercial/service-rates;commercial_service:read;b;b;v;v;x;x;x;x;x;x;x;b
+Merchandising & Commercial;COMMERCIAL;Garansi BestCare;/commercial/bestcare-plans;commercial_bestcare:read;.;.;o;o;.;.;.;.;.;.;.;.
+Merchandising & Commercial;COMMERCIAL;Harga Sparepart & Non-Seri;/commercial/parts-pricing;commercial_parts:read;b;b;b;b;x;x;x;x;x;x;x;b
+Gudang HO;WAREHOUSE_LOGISTICS;Supplier / Vendor;/master/supplier;master_supplier:read;.;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;QC Checklist;/master/qc-checklist;master_qc_checklist:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Manajemen Stok;/warehouse/stock-check;feature_stock_check:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Stock Opname;/warehouse/stock-opname;feature_stock_check:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Manajemen PO;/warehouse/track-po;feature_track_po:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Quality control;/warehouse/qc;feature_qc:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Manajemen Retur;/warehouse/rejected-po;feature_rejected_po:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Manajemen SJ;/warehouse/track-delivery;feature_track_delivery:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Request Part Teknisi;/warehouse/part-request;feature_part_request:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Request Stok Gudang;/warehouse/stock-request;feature_stock_request:read;v;x;x;x;x;x;v;x;x;x;x;x
+Gudang HO;WAREHOUSE_LOGISTICS;Pencatatan Barang;/warehouse/parts-logs;parts_logs:read;v;x;x;x;x;x;v;x;x;x;x;x
+Best Laptop;BEST_LAPTOP;Gudang Bestlaptop;/best-laptop/stock;feature_laptop_stock:read;v;x;x;x;.;v;v;v;x;x;v;x
+Best Laptop;BEST_LAPTOP;POS Bestlaptop;/best-laptop/pos;feature_laptop_pos:create;v;x;x;x;v;b;b;v;x;x;v;x
+Best Laptop;BEST_LAPTOP;Manajemen SJ;/best-laptop/delivery;feature_laptop_track_delivery:read;v;x;x;x;.;v;v;v;x;x;v;x
+Best Laptop;BEST_LAPTOP;Rek Oprasional;/best-laptop/operational-request;feature_laptop_operational_request:read;b;x;x;x;b;b;b;b;x;x;.;x
+Best Laptop;BEST_LAPTOP;Reture Penjualan;/sales/return-sales;sales_return:read;.;x;x;x;v;b;b;v;x;x;.;x
+Best Laptop;BEST_LAPTOP;Stock Opname Laptop;/best-laptop/stock-opname;feature_laptop_stock_opname:read;v;x;x;x;.;v;v;v;x;x;.;x
+Best Laptop;BEST_LAPTOP;Jadwal Shift Toko;/best-laptop/shift-assignments;shift_assignment:read;v;x;x;x;.;b;b;.;x;x;v;x
+Best Laptop;BEST_LAPTOP;Quality Control (QC);/best-laptop/qc;feature_laptop_qc:read;o;.;.;.;.;o;o;.;.;.;.;.
+Best Laptop;BEST_LAPTOP;QC Checklist;/best-laptop/qc-checklist;feature_laptop_qc_checklist:read;.;.;.;.;.;.;.;.;.;.;.;.
+Best Laptop;BEST_LAPTOP;Manajemen PO Laptop;/best-laptop/po;feature_laptop_track_po:read;.;.;.;.;.;.;.;.;.;.;.;.
+Best Laptop;BEST_LAPTOP;Manajemen Retur Unit;/best-laptop/return;feature_laptop_rejected_po:read;o;.;.;.;.;o;o;.;.;.;.;.
+Best Laptop;BEST_LAPTOP;Supplier / Vendor;/best-laptop/suppliers;feature_laptop_supplier:read;o;.;.;.;.;o;o;.;.;o;.;.
+Best Service;BEST_SERVICE;Gudang Bestservice;/best-service/stock;feature_service_stock:read;v;b;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;POS Bestservice;/best-service/pos;feature_service_pos:create;.;b;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;Service Tiket (Service);/best-service/tickets;feature_service_tickets:read;v;v;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;Manajemen SJ;/best-service/delivery;feature_service_track_delivery:read;v;b;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;Req Oprasional;/best-service/operational-request;feature_service_operational_request:read;.;v;v;v;x;x;x;x;x;x;x;v
+Best Service;BEST_SERVICE;Req Part;/best-service/part-request;feature_service_part_request:read;v;v;v;v;x;x;x;x;x;x;x;v
+Best Service;BEST_SERVICE;Stock Opname Sparepart;/best-service/stock-opname;feature_service_stock_opname:read;v;b;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;Jadwal Shift Service;/best-service/shift-assignments;shift_assignment:read;v;b;v;v;x;x;x;x;x;x;x;b
+Best Service;BEST_SERVICE;Request Stok Gudang;/best-service/stock-request;feature_service_stock_request:read;.;.;.;.;.;.;o;.;.;.;.;.
+Best Service;BEST_SERVICE;Manajemen PO Sparepart;/best-service/po;feature_service_track_po:read;.;.;.;.;.;.;.;.;.;.;.;.
+Best Service;BEST_SERVICE;Pencatatan Barang;/best-service/parts-logs;feature_service_parts_logs:read;.;.;.;.;.;.;.;.;.;.;.;.
+Best Service;BEST_SERVICE;Supplier / Vendor;/best-service/suppliers;feature_service_supplier:read;.;.;.;.;.;.;.;.;.;.;.;.
+BESTCARE;BESTCARE;Data Pelanggan;/sales/customers;crm_contact:read;v;x;x;x;x;x;x;x;x;x;x;x
+BESTCARE;BESTCARE;Premi Basecare;/sales/best-care;bestcare:read;.;x;x;x;x;x;x;x;x;x;x;x
+BESTCARE;BESTCARE;Tracking Garansi;/tracking-warranty;bestcare:read;.;x;x;x;x;x;x;x;x;x;x;x
+BESTCARE;BESTCARE;Bestcare Unit;/sales/bestcare-unit;bestcare:read;.;x;x;x;x;x;x;x;x;x;x;x
+Marketing;MARKETING;Statistik Penjualan;/sales/statistik-penjualan;statistik_penjualan:read;.;.;.;.;.;.;.;.;.;.;.;.
+Marketing;MARKETING;Premi Marketing;/sales/premi-marketing;premi_marketing:read;.;x;x;x;x;x;x;x;x;x;x;x
+Lainnya;OTHERS;Settings;/settings;master_config_system:read;.;.;.;.;.;.;.;.;.;.;.;.
+Lainnya;OTHERS;Feedback Aplikasi;/others/feedback;feedback:create;v;.;.;.;.;.;.;.;.;.;.;.
+Lainnya;OTHERS;Tanya Jawab & Q&A;/others/faq;feedback:read;v;.;.;.;.;.;.;.;.;.;.;.
+Lainnya;OTHERS;Tutorial;/others/tutorial;feedback:read;v;.;.;.;.;.;.;.;.;.;.;.
+Lainnya;OTHERS;Inbox Feedback & Q&A;/others/inbox-feedback-qa;feedback:read;v;.;.;.;.;.;.;.;.;.;.;.
+
+KETERANGAN;Menu muncul (izinnya ada di database);Menu muncul tanpa perlu izin (bawaan semua karyawan);Halaman disembunyikan dari panel kiri (sengaja), **tetapi jabatan ini punya izinnya** — halaman masih bisa dibuka lewat tautan langsung;"Tidak muncul karena pembatasan khusus (mis. Gudang HO di Best Laptop hanya 3 halaman; Supplier & Req Operasional hanya untuk Kepala Divisi; Teknisi hanya halaman tertentu)";Tidak muncul karena aturan pemisahan divisi;Tidak muncul / tidak bisa dibuka karena izinnya tidak dimiliki

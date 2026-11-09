@@ -165,6 +165,9 @@ Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
+## Local backups (jangan commit)
+_backup-*/
+
 ## Update package ZIP (file hasil build untuk release)
 RyotaQC-V5-Update-v*.zip
 
