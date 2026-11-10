@@ -1,0 +1,253 @@
+name: Build and Release RyotaQC V5
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 5.1.4)'
+        required: false
+        default: '5.1.4'
+      tag:
+        description: 'Git tag for the release (e.g. v5.1.4)'
+        required: false
+        default: 'v5.1.4'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release Windows Desktop App
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          Write-Host "Installing Inno Setup 6 via Chocolatey..." -ForegroundColor Cyan
+          choco install innosetup --no-progress
+          $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $isccPath) {
+            Write-Host "Inno Setup compiler ready at: $isccPath" -ForegroundColor Green
+          } else {
+            throw "Inno Setup compiler not found after installation."
+          }
+
+      - name: Resolve Target Version and Tag
+        id: resolve_vars
+        shell: pwsh
+        run: |
+          $event = "${{ github.event_name }}"
+          $inputTag = "${{ github.event.inputs.tag }}"
+          $inputVer = "${{ github.event.inputs.version }}"
+          $refName  = "${{ github.ref_name }}"
+
+          if ($event -eq "workflow_dispatch" -and -not [string]::IsNullOrWhiteSpace($inputTag)) {
+              $tag = $inputTag.Trim()
+          } elseif (-not [string]::IsNullOrWhiteSpace($refName) -and $refName.StartsWith("v")) {
+              $tag = $refName.Trim()
+          } else {
+              $tag = "v5.1.4"
+          }
+
+          if ($event -eq "workflow_dispatch" -and -not [string]::IsNullOrWhiteSpace($inputVer)) {
+              $version = $inputVer.Trim()
+          } else {
+              $version = $tag.TrimStart('v').Trim()
+          }
+
+          Write-Host "=========================================" -ForegroundColor Cyan
+          Write-Host "Building RyotaQC V5" -ForegroundColor Cyan
+          Write-Host "  Event   : $event"
+          Write-Host "  Tag     : $tag"
+          Write-Host "  Version : $version"
+          Write-Host "=========================================" -ForegroundColor Cyan
+
+          "TARGET_TAG=$tag" >> $env:GITHUB_ENV
+          "TARGET_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Publish RyotaQC.App (.NET 10 WPF win-x64)
+        shell: pwsh
+        run: |
+          $ver = $env:TARGET_VERSION
+          $repoRoot = $env:GITHUB_WORKSPACE
+          $publishDir = Join-Path $repoRoot "release\publish\app"
+          $stageDir = Join-Path $repoRoot "release\staging\RyotaQC-V5"
+          $toolsTarget = Join-Path $stageDir "tools"
+          $logsTarget = Join-Path $stageDir "logs"
+
+          if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
+          if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
+          New-Item -ItemType Directory -Path $publishDir -Force | Out-Null
+          New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
+
+          Write-Host "Publishing RyotaQC.App with dotnet publish..." -ForegroundColor Cyan
+          dotnet publish src\RyotaQC.App\RyotaQC.App.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -o $publishDir `
+            -p:PublishReadyToRun=false `
+            -p:PublishTrimmed=false `
+            -p:PublishSingleFile=false `
+            -p:Version=$ver
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "dotnet publish failed with exit code $LASTEXITCODE"
+          }
+
+          Write-Host "Copying published files to staging..." -ForegroundColor Cyan
+          Copy-Item -Path "$publishDir\*" -Destination $stageDir -Recurse -Force
+
+          if (Test-Path "tools") {
+            Write-Host "Bundling tools folder..." -ForegroundColor Cyan
+            New-Item -ItemType Directory -Path $toolsTarget -Force | Out-Null
+            Copy-Item -Path "tools\*" -Destination $toolsTarget -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $logsTarget -Force | Out-Null
+
+          $mainExe = Join-Path $stageDir "RyotaQC.App.exe"
+          if (-not (Test-Path $mainExe)) {
+            throw "RyotaQC.App.exe not found in stage directory: $stageDir"
+          }
+
+          $fileVer = (Get-Item $mainExe).VersionInfo.FileVersion
+          Write-Host "Staging ready. RyotaQC.App.exe FileVersion: $fileVer" -ForegroundColor Green
+
+      - name: Compile Inno Setup Installer
+        shell: pwsh
+        run: |
+          $ver = $env:TARGET_VERSION
+          $repoRoot = $env:GITHUB_WORKSPACE
+          $stageDir = Join-Path $repoRoot "release\staging\RyotaQC-V5"
+          $outputDir = Join-Path $repoRoot "release"
+          $issPath = Join-Path $repoRoot "installer\RyotaQC.Setup.iss"
+
+          New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+          $isccCandidates = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          )
+          $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { $iscc = "ISCC.exe" }
+
+          Write-Host "Compiling installer: $issPath using $iscc..." -ForegroundColor Cyan
+          & $iscc `
+            "/DAppVersion=$ver" `
+            "/DAppSourceDir=$stageDir" `
+            "/DOutputDir=$outputDir" `
+            "/DAppExeName=RyotaQC.App.exe" `
+            $issPath
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "ISCC compilation failed with exit code $LASTEXITCODE"
+          }
+
+          $setupExe = Join-Path $outputDir "RyotaQC-V5-Setup-x64-v$ver.exe"
+          if (-not (Test-Path $setupExe)) {
+            throw "Setup EXE not found: $setupExe"
+          }
+
+          $exeSizeMb = [math]::Round((Get-Item $setupExe).Length / 1MB, 2)
+          Write-Host "Setup EXE successfully generated: $setupExe ($exeSizeMb MB)" -ForegroundColor Green
+
+      - name: Package Update ZIP and Compute SHA256
+        shell: pwsh
+        run: |
+          $ver = $env:TARGET_VERSION
+          $repoRoot = $env:GITHUB_WORKSPACE
+          $stageDir = Join-Path $repoRoot "release\staging\RyotaQC-V5"
+          $outputDir = Join-Path $repoRoot "release"
+          $setupExe = Join-Path $outputDir "RyotaQC-V5-Setup-x64-v$ver.exe"
+          $zipPath = Join-Path $outputDir "RyotaQC-V5-Update-v$ver.zip"
+          $sumsPath = Join-Path $outputDir "SHA256SUMS.txt"
+
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+          Write-Host "Packaging update ZIP from $stageDir..." -ForegroundColor Cyan
+          Push-Location $stageDir
+          try {
+            & tar.exe -a -c -f $zipPath *
+            if ($LASTEXITCODE -ne 0) {
+              throw "tar failed to produce ZIP with exit code $LASTEXITCODE"
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          if (-not (Test-Path $zipPath)) {
+            throw "Update ZIP not found: $zipPath"
+          }
+
+          $zipSizeMb = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+          Write-Host "Update ZIP created: $zipPath ($zipSizeMb MB)" -ForegroundColor Green
+
+          Write-Host "Computing SHA256 checksums..." -ForegroundColor Cyan
+          $lines = @()
+          foreach ($f in @($setupExe, $zipPath)) {
+            $h = (Get-FileHash $f -Algorithm SHA256).Hash
+            $lines += ("{0}  {1}" -f $h, (Split-Path $f -Leaf))
+          }
+          [System.IO.File]::WriteAllText($sumsPath, ($lines -join "`r`n") + "`r`n", [System.Text.UTF8Encoding]::new($false))
+
+          Write-Host "Generated SHA256SUMS.txt:" -ForegroundColor Green
+          Get-Content $sumsPath | ForEach-Object { Write-Host "  $_" }
+
+      - name: Upload Assets to GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:TARGET_TAG
+          $ver = $env:TARGET_VERSION
+          $repoRoot = $env:GITHUB_WORKSPACE
+          $outputDir = Join-Path $repoRoot "release"
+          $setupExe = Join-Path $outputDir "RyotaQC-V5-Setup-x64-v$ver.exe"
+          $zipPath = Join-Path $outputDir "RyotaQC-V5-Update-v$ver.zip"
+          $sumsPath = Join-Path $outputDir "SHA256SUMS.txt"
+
+          Write-Host "Connecting to GitHub Releases for tag: $tag..." -ForegroundColor Cyan
+          $rel = $null
+          try {
+            $rel = gh release view $tag --json id,isDraft,name,tagName 2>&1 | ConvertFrom-Json
+          } catch {
+            $rel = $null
+          }
+
+          if ($rel -and $rel.tagName) {
+            Write-Host "Found release $tag (isDraft: $($rel.isDraft)). Uploading assets..." -ForegroundColor Cyan
+            gh release upload $tag $setupExe $zipPath $sumsPath --clobber
+            if ($rel.isDraft) {
+              Write-Host "Publishing release (undrafting)..." -ForegroundColor Green
+              gh release edit $tag --draft=false
+            }
+          } else {
+            Write-Host "Release $tag does not exist. Creating release..." -ForegroundColor Cyan
+            $notesFile = Join-Path $repoRoot "docs\RELEASE_NOTES_$tag.md"
+            if (Test-Path $notesFile) {
+              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 $tag" --notes-file $notesFile
+            } else {
+              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 $tag" --generate-notes
+            }
+          }
+
+          Write-Host ""
+          Write-Host "=========================================" -ForegroundColor Green
+          Write-Host "SUCCESS: Release $tag successfully updated and published!" -ForegroundColor Green
+          Write-Host "=========================================" -ForegroundColor Green
