@@ -2764,29 +2764,20 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             return;
         }
 
-        // Mandatory completeness gate. The ERP must never receive a partial QC
-        // result: show a popup listing every missing mandatory field/test.
+        // QC-FLEXIBLE-SAVE (20261110): Pengguna dapat menyimpan hasil QC ke ERP meskipun
+        // checklist belum lengkap (un-tested parameter dikirim sebagai "-"), terutama jika
+        // unit terindikasi RETUR atau SERVICE di tengah pengetesan. Status di ERP akan
+        // mengikuti pilihan teknisi (RETUR, SERVICE, RUNNING_TEST, atau LULUS).
         var missing = CollectMissingMandatory();
+        var selectedQcStatus = string.IsNullOrWhiteSpace(QcStatus) ? "LULUS" : QcStatus.Trim().ToUpperInvariant();
+
         if (missing.Count > 0)
         {
-            ErpSyncStatus = "GAGAL kirim ke ERP: hasil QC belum lengkap (ada parameter wajib yang kosong).";
-            ErpSyncStatusColorBrush = System.Windows.Media.Brushes.OrangeRed;
-            _audio.PlayClose();
-
-            Views.Windows.QcMessagePopupWindow.Show(
-                "GAGAL Kirim ke ERP",
-                "Hasil QC tidak lengkap. Parameter wajib berikut belum diisi / di-test:\n\n• "
-                + string.Join("\n• ", missing)
-                + "\n\nLengkapi semua parameter wajib lalu klik Kirim ke ERP lagi.",
-                Views.Windows.QcMessageTone.Error);
-            return;
+            _logger.Info($"Kirim ke ERP dengan {missing.Count} parameter belum di-test (Status QC: {selectedQcStatus})");
         }
 
-        if (!TryGetPhysicalScore(out var physicalScore))
-        {
-            _feedback.ShowWarning("Skor Fisik harus berupa angka 0-100, contoh: 94%.");
-            return;
-        }
+        // Skor fisik opsional jika belum diisi teknisi (default null agar tidak memblokir simpan)
+        int? physicalScore = TryGetPhysicalScore(out var scoreVal) ? scoreVal : null;
 
         try
         {
@@ -2847,6 +2838,28 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             var overallStatus = ComputeOverallStatus(tests, numericTests);
             var allPassed = overallStatus == "PASS";
 
+            string statusToSend;
+            if (selectedQcStatus == "RETUR" || selectedQcStatus == "SERVICE")
+            {
+                statusToSend = "FAIL";
+            }
+            else if (selectedQcStatus == "RUNNING_TEST")
+            {
+                statusToSend = "RUNNING";
+            }
+            else
+            {
+                statusToSend = allPassed ? "PASS" : "FAIL";
+            }
+
+            var modelName = !string.IsNullOrWhiteSpace(LaptopModel)
+                ? LaptopModel.Trim()
+                : (!string.IsNullOrWhiteSpace(sysInfo.SystemModel) ? sysInfo.SystemModel.Trim() : "Laptop");
+
+            var completenessStr = !string.IsNullOrWhiteSpace(Completeness)
+                ? Completeness.Trim()
+                : "Unit Only";
+
             // 4. Bangun payload ERP (qcData.tests + numericTests) dengan QcStatus + TesterId
             var payload = new ErpQcPayload
             {
@@ -2855,15 +2868,15 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
                 Brand = _cachedSystemManufacturer,
                 // Tipe Laptop comes from the editable "Tipe/Model" box (auto-filled
                 // from System Information after ERP connect).
-                Model = LaptopModel.Trim(),
-                Completeness = Completeness.Trim(),
+                Model = modelName,
+                Completeness = completenessStr,
                 Specs = specs,
                 BatteryHealth = _batteryHealthPercent,
                 BatteryHealth2 = _batteryHealth2Percent,
                 StorageHealth = _storageHealthPercent,
                 BatteryLifetimeMinutes = _batteryLifetimeMinutes,
-                Status = allPassed ? "PASS" : "FAIL",
-                QcStatus = string.IsNullOrWhiteSpace(QcStatus) ? "LULUS" : QcStatus.ToUpperInvariant(),
+                Status = statusToSend,
+                QcStatus = selectedQcStatus,
                 Tests = tests,
                 NumericTests = numericTests,
                 TestedBy = SelectedTester?.Name ?? sysInfo.UserName ?? "Teknisi QC",
@@ -3105,16 +3118,11 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
             return;
         }
 
-        if (SelectedTester == null)
-        {
-            _feedback.ShowWarning("Pilih tester terlebih dahulu sebelum Hubungkan.");
-            return;
-        }
-
         await Task.Delay(0);
         IsConnected = true;
         _audio.PlayAction();
-        ErpSyncStatus = $"Terhubung ke {SelectedUnit.InternalId} ({SelectedUnit.Brand})\nTester: {SelectedTester.Name}\nSekarang hasil QC akan otomatis terikat ke unit ini.";
+        var testerDesc = SelectedTester != null ? $"\nTester: {SelectedTester.Name}" : string.Empty;
+        ErpSyncStatus = $"Terhubung ke {SelectedUnit.InternalId} ({SelectedUnit.Brand}){testerDesc}\nSekarang hasil QC akan otomatis terikat ke unit ini.";
         ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;
         _feedback.ShowInfo($"Berhasil terhubung ke unit {SelectedUnit.InternalId}.\nSekarang hasil QC akan terikat ke unit ini di ERP.");
     }
