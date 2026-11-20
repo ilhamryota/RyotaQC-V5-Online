@@ -518,7 +518,8 @@ public partial class QcErpSyncWindow : Window
             var entries = result?.Data ?? new System.Collections.Generic.List<QcHistoryEntry>();
             QcHistoryWindow.Show(
                 string.IsNullOrWhiteSpace(result?.InternalId) ? code : result!.InternalId!,
-                entries);
+                entries,
+                result?.UnitInfo);
         }
         catch (Exception ex)
         {

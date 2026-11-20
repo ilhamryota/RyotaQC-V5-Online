@@ -53,6 +53,15 @@ public partial class HomeScreenViewModel : ObservableObject
     [ObservableProperty]
     private string appVersionText = string.Empty;
 
+    [ObservableProperty]
+    private bool isMovementMuted;
+
+    [ObservableProperty]
+    private string muteIconGlyph = "\uE767";
+
+    [ObservableProperty]
+    private string muteToolTip = "Mute SFX Navigasi Panah";
+
     public HomeScreenViewModel(
         INavigationService navigationService,
         IExternalToolLauncher launcher,
@@ -72,6 +81,18 @@ public partial class HomeScreenViewModel : ObservableObject
         // Display current app version on the main menu.
         var v = _updateService.GetCurrentVersion();
         AppVersionText = $"v{v.Major}.{v.Minor}.{v.Build}";
+
+        IsMovementMuted = _audio.IsMovementMuted;
+        MuteIconGlyph = IsMovementMuted ? "\uE74F" : "\uE767";
+        MuteToolTip = IsMovementMuted ? "Unmute SFX Navigasi Panah" : "Mute SFX Navigasi Panah";
+
+        ToggleMovementMuteCommand = new RelayCommand(() =>
+        {
+            _audio.IsMovementMuted = !_audio.IsMovementMuted;
+            IsMovementMuted = _audio.IsMovementMuted;
+            MuteIconGlyph = IsMovementMuted ? "\uE74F" : "\uE767";
+            MuteToolTip = IsMovementMuted ? "Unmute SFX Navigasi Panah" : "Mute SFX Navigasi Panah";
+        });
 
         Menus = new ObservableCollection<HomeMenu>
         {
@@ -153,6 +174,8 @@ public partial class HomeScreenViewModel : ObservableObject
     public IRelayCommand OpenSettingsCommand { get; }
 
     public IRelayCommand OpenSearchCommand { get; }
+
+    public IRelayCommand ToggleMovementMuteCommand { get; }
 
     public IRelayCommand OpenInstagramCommand { get; }
 

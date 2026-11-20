@@ -90,6 +90,10 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Command="{Binding ToggleMovementMuteCommand}"
+                            Style="{StaticResource HomeNavButtonStyle}"
+                            Content="{Binding MuteIconGlyph}"
+                            ToolTip="{Binding MuteToolTip}" />
                     <Button Command="{Binding OpenSearchCommand}"
                             Style="{StaticResource HomeNavButtonStyle}"
                             Content="&#xE721;"

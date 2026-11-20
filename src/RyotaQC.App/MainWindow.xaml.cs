@@ -63,6 +63,7 @@ public partial class MainWindow : Window
     private void Window_OnLoaded(object sender, RoutedEventArgs e)
     {
         ApplyInitialWindowBounds();
+        UpdateMuteButtonState(Sfx.IsMovementMuted);
         _navigationService.Navigate(AppPage.Dashboard);
 
         Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(FocusFirstControlInFrame));
@@ -227,6 +228,19 @@ public partial class MainWindow : Window
         }
 
         DragMove();
+    }
+
+    private void MuteMovementAudio_OnClick(object sender, RoutedEventArgs e)
+    {
+        var muted = Sfx.ToggleMovementMute();
+        UpdateMuteButtonState(muted);
+    }
+
+    private void UpdateMuteButtonState(bool muted)
+    {
+        if (MuteMovementAudioButton is null) return;
+        MuteMovementAudioButton.Content = muted ? "\uE74F" : "\uE767";
+        MuteMovementAudioButton.ToolTip = muted ? "Unmute SFX Navigasi Panah" : "Mute SFX Navigasi Panah";
     }
 
     private void Minimize_OnClick(object sender, RoutedEventArgs e)

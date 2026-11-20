@@ -241,9 +241,9 @@ jobs:
             Write-Host "Release $tag does not exist. Creating release..." -ForegroundColor Cyan
             $notesFile = Join-Path $repoRoot "docs\RELEASE_NOTES_$tag.md"
             if (Test-Path $notesFile) {
-              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 $tag" --notes-file $notesFile
+              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 EsteraOne $tag" --notes-file $notesFile
             } else {
-              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 $tag" --generate-notes
+              gh release create $tag $setupExe $zipPath $sumsPath --title "RyotaQC V5 EsteraOne $tag" --generate-notes
             }
           }
 

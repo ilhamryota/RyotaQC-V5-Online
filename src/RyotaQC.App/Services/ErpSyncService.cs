@@ -222,6 +222,21 @@ public class ErpUnitData
     public string Model { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string PoNumber { get; set; } = string.Empty;
+    public string DestinationOutletName { get; set; } = string.Empty;
+
+    public string CleanProductName
+    {
+        get
+        {
+            var p = (ProductName ?? string.Empty).Trim();
+            var b = (Brand ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(b) && p.StartsWith(b + " - ", StringComparison.OrdinalIgnoreCase))
+            {
+                p = p.Substring(b.Length + 3).Trim();
+            }
+            return string.IsNullOrEmpty(p) ? $"{b} Laptop" : p;
+        }
+    }
 }
 
 // ===== PO Units Lookup response types =====
@@ -250,12 +265,27 @@ public class PoUnitItem
     public string Status { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
     public string Brand { get; set; } = string.Empty;
+    public string DestinationOutletName { get; set; } = string.Empty;
+
+    public string CleanProductName
+    {
+        get
+        {
+            var p = (ProductName ?? string.Empty).Trim();
+            var b = (Brand ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(b) && p.StartsWith(b + " - ", StringComparison.OrdinalIgnoreCase))
+            {
+                p = p.Substring(b.Length + 3).Trim();
+            }
+            return string.IsNullOrEmpty(p) ? $"{b} Laptop" : p;
+        }
+    }
 
     /// <summary>Label posisi unit di kanban QC (Antrean / Tes Running / Selesai / Service / Retur).</summary>
     public string StatusLabel => (Status ?? string.Empty).Trim().ToUpperInvariant() switch
     {
-        "QC_QUEUE" or "QC_ANTREAN" or "ANTREAN" or "QUEUE" => "QC Antrean",
-        "QC_PROCESS" or "RUNNING_TEST" or "RUNNING" or "TES_RUNNING" => "Tes Running",
+        "QC_QUEUE" or "QC_ANTREAN" or "ANTREAN" or "QUEUE" => "QC antrean",
+        "QC_PROCESS" or "RUNNING_TEST" or "RUNNING" or "TES_RUNNING" => "Tes running",
         "PASS" or "SELESAI" => "Selesai",
         "SERVICE" => "Service",
         "RETUR" or "RETURN" => "Retur",
@@ -263,9 +293,18 @@ public class PoUnitItem
         var other => other
     };
 
-    /// <summary>Label used by ComboBox display, e.g. "EST-2610-0003-01 - Lenovo - ThinkPad X395 (QC Antrean)".</summary>
-    public string DisplayText =>
-        $"{InternalId} - {Brand} - {ProductName} ({StatusLabel})";
+    /// <summary>
+    /// Dropdown format: Kode Unit - Nama Item (Contoh: Dell Latitude 3380 i5-7 8/256-BGR) - Tujuan pengiriman Outlet ( Status di kanban )
+    /// Contoh: PO-SUP-004-191126-002 - Lenovo Thinkpad T450 i5-5 8/256-BGR - Bestlaptop Bogor ( QC antrean )
+    /// </summary>
+    public string DisplayText
+    {
+        get
+        {
+            var dest = string.IsNullOrWhiteSpace(DestinationOutletName) ? string.Empty : $" - {DestinationOutletName.Trim()}";
+            return $"{InternalId} - {CleanProductName}{dest} ( {StatusLabel} )";
+        }
+    }
 }
 
 // ===== Testers response types =====
@@ -290,8 +329,39 @@ public class QcHistoryResponse
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
     public List<QcHistoryEntry> Data { get; set; } = new();
+    public QcUnitDetails? UnitInfo { get; set; }
     public string? InternalId { get; set; }
     public string? SerialNumber { get; set; }
+}
+
+public class QcUnitDetails
+{
+    public string Id { get; set; } = string.Empty;
+    public string InternalId { get; set; } = string.Empty;
+    public string SerialNumber { get; set; } = string.Empty;
+    public string Brand { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public string DestinationOutletName { get; set; } = string.Empty;
+    public QcHardwareSpecs? Specs { get; set; }
+    public System.Text.Json.JsonElement? Tests { get; set; }
+    public System.Text.Json.JsonElement? NumericTests { get; set; }
+    public double? BatteryHealth { get; set; }
+    public double? BatteryHealth2 { get; set; }
+    public double? StorageHealth { get; set; }
+    public double? BatteryLifetimeMinutes { get; set; }
+    public string? RemainingLifetime { get; set; }
+    public string? LifetimeWrites { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class QcHardwareSpecs
+{
+    public string Processor { get; set; } = string.Empty;
+    public string Ram { get; set; } = string.Empty;
+    public string Ssd { get; set; } = string.Empty;
+    public string Hdd { get; set; } = string.Empty;
+    public string Vga { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
 }
 
 public class QcHistoryEntry
@@ -302,6 +372,7 @@ public class QcHistoryEntry
     public string? OverallStatus { get; set; }
     public string? Source { get; set; }
     public string? Notes { get; set; }
+    public System.Text.Json.JsonElement? Snapshot { get; set; }
     public DateTime? CreatedAt { get; set; }
 
     /// <summary>Label status ringkas untuk daftar log di aplikasi.</summary>

@@ -181,6 +181,19 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
     /// </summary>
     public IErpSyncService ErpSyncService => _erpSyncService;
 
+    private static string FormatErpUnitDetails(string unitName, string internalId, string status, string destination)
+    {
+        var cleanUnit = string.IsNullOrWhiteSpace(unitName) ? "-" : unitName.Trim();
+        var cleanId = string.IsNullOrWhiteSpace(internalId) ? "-" : internalId.Trim();
+        var cleanStatus = string.IsNullOrWhiteSpace(status) ? "-" : status.Trim();
+        var cleanDest = string.IsNullOrWhiteSpace(destination) ? "-" : destination.Trim();
+
+        return $"Unit : {cleanUnit}\n" +
+               $"Kode Unit : {cleanId}\n" +
+               $"Status Saat ini : {cleanStatus}\n" +
+               $"Tujuan Pengiriman : {cleanDest}";
+    }
+
     /// <summary>
     /// Called after the user answers the "Hubungkan ke ERP" popup. Binds the QC
     /// session to the chosen unit (or runs without ERP) and refreshes the
@@ -221,8 +234,11 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         PoNumber = connection.PoNumber ?? string.Empty;
         PraQcCode = connection.Unit.PraQcCode;
         SelectedUnit = connection.Unit;
-        ErpUnitDetails = $"Unit: {connection.Unit.ProductName} ({connection.Unit.Brand})\n" +
-                         $"Kode: {connection.Unit.InternalId} | Status: {connection.Unit.Status}";
+
+        var unitName = !string.IsNullOrWhiteSpace(connection.Unit.CleanProductName)
+            ? connection.Unit.CleanProductName
+            : connection.Unit.ProductName;
+        ErpUnitDetails = FormatErpUnitDetails(unitName, connection.Unit.InternalId, connection.Unit.StatusLabel, connection.Unit.DestinationOutletName);
         HasErpUnitDetails = true;
         ErpSyncStatus = string.IsNullOrWhiteSpace(TesterName)
             ? $"Terhubung ke unit ERP {connection.Unit.InternalId}. Hasil QC akan otomatis terikat ke kanban unit ini."
@@ -319,7 +335,8 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         if (value != null)
         {
             PraQcCode = value.PraQcCode;
-            ErpUnitDetails = $"Unit: {value.ProductName} ({value.Brand})\nKode: {value.InternalId} | Status: {value.Status}";
+            var unitName = !string.IsNullOrWhiteSpace(value.CleanProductName) ? value.CleanProductName : value.ProductName;
+            ErpUnitDetails = FormatErpUnitDetails(unitName, value.InternalId, value.StatusLabel, value.DestinationOutletName);
             HasErpUnitDetails = true;
         }
     }
@@ -2655,7 +2672,12 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
         if (result != null && result.Success && result.Data != null)
         {
             var d = result.Data;
-            ErpUnitDetails = $"Unit: {d.ProductName} ({d.Brand} {d.Model})\nPO: {d.PoNumber} | Status: {d.Status}";
+            var unitName = !string.IsNullOrWhiteSpace(d.CleanProductName)
+                ? d.CleanProductName
+                : (!string.IsNullOrWhiteSpace(d.Model) ? $"{d.Brand} {d.Model}" : d.ProductName);
+            var statusLabel = !string.IsNullOrWhiteSpace(d.Status) ? d.Status : "-";
+            var dest = !string.IsNullOrWhiteSpace(d.DestinationOutletName) ? d.DestinationOutletName : "-";
+            ErpUnitDetails = FormatErpUnitDetails(unitName, d.InternalId, statusLabel, dest);
             HasErpUnitDetails = true;
             ErpSyncStatus = "Unit ditemukan di ERP!";
             ErpSyncStatusColorBrush = System.Windows.Media.Brushes.LightGreen;

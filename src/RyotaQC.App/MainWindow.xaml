@@ -103,7 +103,12 @@
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center"
                     Margin="0,0,8,0"
-                    Panel.ZIndex="500">
+                    Panel.ZIndex="1100">
+            <Button x:Name="MuteMovementAudioButton"
+                    Content="&#xE767;"
+                    ToolTip="Mute SFX Navigasi Panah"
+                    Style="{StaticResource TitleBarButtonStyle}"
+                    Click="MuteMovementAudio_OnClick" />
             <Button Content="&#xE921;" Style="{StaticResource TitleBarButtonStyle}" Click="Minimize_OnClick" />
             <Button Content="&#xE922;" Style="{StaticResource TitleBarButtonStyle}" Click="Maximize_OnClick" />
             <Button Content="&#xE8BB;" Style="{StaticResource TitleBarButtonStyle}" Click="Close_OnClick" />

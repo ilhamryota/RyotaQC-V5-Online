@@ -6,6 +6,9 @@ namespace RyotaQC.App.Services;
 /// </summary>
 public interface IAudioFeedbackService
 {
+    /// <summary>Status mute untuk audio efek navigasi panah menu (tidak mematikan audio fungsi QC).</summary>
+    bool IsMovementMuted { get; set; }
+
     /// <summary>Played when entering a menu (click tile or Enter).</summary>
     void PlayEnter();
 

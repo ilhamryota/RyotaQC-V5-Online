@@ -31,11 +31,17 @@ public sealed class AudioFeedbackService : IAudioFeedbackService, IDisposable
 
     private IAppLogger Logger { get; }
 
+    public bool IsMovementMuted { get; set; }
+
     public void PlayEnter() => Play("In.mp3");
 
     public void PlayExit() => Play("Out.mp3");
 
-    public void PlayNavigate() => Play("Left Right.mp3");
+    public void PlayNavigate()
+    {
+        if (IsMovementMuted) return;
+        Play("Left Right.mp3");
+    }
 
     public void PlayAction() => Play("Action.mp3");
 

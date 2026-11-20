@@ -21,6 +21,34 @@ public static class Sfx
 
     public static void Navigate() => WithService(s => s.PlayNavigate());
 
+    public static bool IsMovementMuted
+    {
+        get
+        {
+            try
+            {
+                var audio = App.Services?.GetService<IAudioFeedbackService>();
+                return audio?.IsMovementMuted ?? false;
+            }
+            catch { return false; }
+        }
+        set
+        {
+            try
+            {
+                var audio = App.Services?.GetService<IAudioFeedbackService>();
+                if (audio != null) audio.IsMovementMuted = value;
+            }
+            catch { }
+        }
+    }
+
+    public static bool ToggleMovementMute()
+    {
+        IsMovementMuted = !IsMovementMuted;
+        return IsMovementMuted;
+    }
+
     private static void WithService(Action<IAudioFeedbackService> action)
     {
         try
