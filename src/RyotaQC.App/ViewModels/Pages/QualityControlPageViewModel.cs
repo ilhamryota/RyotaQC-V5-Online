@@ -2659,16 +2659,22 @@ public sealed partial class QualityControlPageViewModel : ObservableObject
 
     private async Task LookupUnitInfoAsync()
     {
-        if (string.IsNullOrWhiteSpace(PraQcCode))
+        var normalizedCode = Services.ErpSyncService.ExtractScanCode(PraQcCode);
+        if (string.IsNullOrWhiteSpace(normalizedCode))
         {
             _feedback.ShowWarning("Silakan masukkan Kode Pra-QC terlebih dahulu.");
             return;
         }
 
+        if (!string.Equals(PraQcCode.Trim(), normalizedCode, StringComparison.Ordinal))
+        {
+            PraQcCode = normalizedCode;
+        }
+
         ErpSyncStatus = "Mencari data unit di ERP...";
         ErpSyncStatusColorBrush = System.Windows.Media.Brushes.Yellow;
 
-        var result = await _erpSyncService.LookupUnitAsync(PraQcCode.Trim());
+        var result = await _erpSyncService.LookupUnitAsync(normalizedCode);
         if (result != null && result.Success && result.Data != null)
         {
             var d = result.Data;

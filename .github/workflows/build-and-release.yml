@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to build (e.g. 5.1.4)'
+        description: 'Version to build (e.g. 5.1.6)'
         required: false
-        default: '5.1.4'
+        default: '5.1.6'
       tag:
-        description: 'Git tag for the release (e.g. v5.1.4)'
+        description: 'Git tag for the release (e.g. v5.1.6)'
         required: false
-        default: 'v5.1.4'
+        default: 'v5.1.6'
 
 permissions:
   contents: write
@@ -61,7 +61,7 @@ jobs:
           } elseif (-not [string]::IsNullOrWhiteSpace($refName) -and $refName.StartsWith("v")) {
               $tag = $refName.Trim()
           } else {
-              $tag = "v5.1.4"
+              $tag = "v5.1.6"
           }
 
           if ($event -eq "workflow_dispatch" -and -not [string]::IsNullOrWhiteSpace($inputVer)) {

@@ -33,10 +33,76 @@ public sealed class ErpSyncService : IErpSyncService
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
     }
 
+    /// <summary>
+    /// Mengekstrak kode unit/pra-QC/SN bersih dari input scan QR (termasuk link web /scan/unit/...).
+    /// </summary>
+    public static string ExtractScanCode(string? raw)
+    {
+        var cleaned = (raw ?? string.Empty).Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
+        if (string.IsNullOrEmpty(cleaned))
+        {
+            return string.Empty;
+        }
+
+        Uri? uri = null;
+        if (cleaned.Contains("://", StringComparison.Ordinal))
+        {
+            Uri.TryCreate(cleaned, UriKind.Absolute, out uri);
+        }
+        else if (cleaned.StartsWith("/scan/", StringComparison.OrdinalIgnoreCase) ||
+                 cleaned.StartsWith("scan/", StringComparison.OrdinalIgnoreCase))
+        {
+            var normalized = cleaned.StartsWith('/') ? cleaned : "/" + cleaned;
+            Uri.TryCreate("https://esteraone.local" + normalized, UriKind.Absolute, out uri);
+        }
+        else if (cleaned.Contains("/scan/", StringComparison.OrdinalIgnoreCase))
+        {
+            Uri.TryCreate("https://" + cleaned, UriKind.Absolute, out uri);
+        }
+
+        if (uri is not null)
+        {
+            if (!string.IsNullOrEmpty(uri.Query))
+            {
+                var queryMatch = System.Text.RegularExpressions.Regex.Match(
+                    uri.Query,
+                    @"(?:^|[?&])(?:code|unit|praQcCode|serialNumber)=([^&]+)",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (queryMatch.Success && !string.IsNullOrWhiteSpace(queryMatch.Groups[1].Value))
+                {
+                    return Uri.UnescapeDataString(queryMatch.Groups[1].Value).Trim();
+                }
+            }
+
+            var pathMatch = System.Text.RegularExpressions.Regex.Match(
+                uri.AbsolutePath,
+                @"/(?:scan/unit|scan)/([^/?#]+)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (pathMatch.Success && !string.IsNullOrWhiteSpace(pathMatch.Groups[1].Value))
+            {
+                return Uri.UnescapeDataString(pathMatch.Groups[1].Value).Trim();
+            }
+
+            var segments = uri.AbsolutePath.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length > 0 && !string.IsNullOrWhiteSpace(segments[^1]))
+            {
+                return Uri.UnescapeDataString(segments[^1]).Trim();
+            }
+        }
+
+        return cleaned;
+    }
+
     public async Task<ErpSyncResponse> SubmitQcAsync(ErpQcPayload payload)
     {
         try
         {
+            if (payload is not null)
+            {
+                payload.PraQcCode = ExtractScanCode(payload.PraQcCode);
+                payload.SerialNumber = ExtractScanCode(payload.SerialNumber);
+            }
+
             var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/submit";
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -58,7 +124,10 @@ public sealed class ErpSyncService : IErpSyncService
     {
         try
         {
-            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/unit-info/{Uri.EscapeDataString(code.Trim())}";
+            var normalizedCode = ExtractScanCode(code);
+            if (string.IsNullOrEmpty(normalizedCode)) return null;
+
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/unit-info/{Uri.EscapeDataString(normalizedCode)}";
             var response = await _httpClient.GetAsync(url);
             if (!response.IsSuccessStatusCode) return null;
 
@@ -143,7 +212,10 @@ public sealed class ErpSyncService : IErpSyncService
     {
         try
         {
-            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/history/{Uri.EscapeDataString(code.Trim())}";
+            var normalizedCode = ExtractScanCode(code);
+            if (string.IsNullOrEmpty(normalizedCode)) return null;
+
+            var url = $"{_hubBaseUrl.TrimEnd('/')}/api/v1/qc/history/{Uri.EscapeDataString(normalizedCode)}";
             var response = await _httpClient.GetAsync(url);
             var responseString = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<QcHistoryResponse>(responseString, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

@@ -52,6 +52,17 @@ public partial class UpdateWindow : Window
         {
             ShowReadyState();
         }
+        else if (!string.IsNullOrWhiteSpace(_update.DownloadUrl))
+        {
+            // Auto-download update installer immediately when a new version is detected
+            Loaded += async (_, _) =>
+            {
+                if (!_busy && _ready is null)
+                {
+                    await DownloadAsync();
+                }
+            };
+        }
     }
 
     private void PopulateInfo()

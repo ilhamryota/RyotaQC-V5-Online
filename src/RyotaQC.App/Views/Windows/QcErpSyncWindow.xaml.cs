@@ -315,11 +315,16 @@ public partial class QcErpSyncWindow : Window
 
     private async void UnitSearch_Click(object sender, RoutedEventArgs e)
     {
-        var code = (UnitCodeBox.Text ?? string.Empty).Trim();
+        var code = Services.ErpSyncService.ExtractScanCode(UnitCodeBox.Text);
         if (string.IsNullOrWhiteSpace(code))
         {
             SetFooter("Masukkan Kode Unit terlebih dahulu.", "#F0A020");
             return;
+        }
+
+        if (!string.Equals((UnitCodeBox.Text ?? string.Empty).Trim(), code, StringComparison.Ordinal))
+        {
+            UnitCodeBox.Text = code;
         }
 
         UnitSearchButton.IsEnabled = false;
